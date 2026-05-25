@@ -15,24 +15,22 @@
   <!-- Favicon: stopwatch glyph as inline SVG data URL -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='36' r='22' fill='none' stroke='%23f0eee8' stroke-width='4'/><line x1='32' y1='36' x2='32' y2='20' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/><rect x='26' y='4' width='12' height='6' fill='%23f0eee8'/></svg>" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
   <style>
     :root {
-      --color-background: #0c0c0f;
-      --color-surface: #16161b;
-      --color-surface-raised: #1d1d24;
-      --color-border: #26262e;
-      --color-text-primary: #f0eee8;
-      --color-text-muted: #6b6b73;
-      --color-text-dim: #45454d;
-      --color-accent-start: #10b981;
-      --color-accent-stop: #ef4444;
-      --color-accent-edit: #f59e0b;
-      --font-display: 'Azeret Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-      --font-ui: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      --color-background: #000000;
+      --color-surface: #1c1c1e;
+      --color-surface-raised: #2c2c2e;
+      --color-border: #2a2a2c;
+      --color-text-primary: #ffffff;
+      --color-text-muted: #8e8e93;
+      --color-text-dim: #48484a;
+      --color-accent-start-bg: rgba(48, 209, 88, 0.18);
+      --color-accent-start-text: #30d158;
+      --color-accent-stop-bg: rgba(255, 69, 58, 0.18);
+      --color-accent-stop-text: #ff453a;
+      --color-accent-edit: #ff9f0a;
+      --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+      --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
@@ -61,142 +59,31 @@
       flex-direction: column;
       padding-top: var(--safe-top);
       padding-bottom: var(--safe-bottom);
-      background:
-        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
-        var(--color-background);
-    }
-
-    .app-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 24px 8px;
-      flex-shrink: 0;
-    }
-
-    .app-title {
-      font-family: var(--font-ui);
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-    }
-
-    .app-status-indicator {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: var(--font-display);
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-    }
-
-    .app-status-indicator .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--color-text-dim);
-      transition: background 200ms ease, box-shadow 200ms ease;
-    }
-
-    .app-status-indicator.is-running .status-dot {
-      background: var(--color-accent-start);
-      box-shadow: 0 0 12px var(--color-accent-start);
-      animation: pulse-dot 1.6s ease-in-out infinite;
-    }
-
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      background: var(--color-background);
     }
 
     .timer-display-section {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px 24px;
-      position: relative;
-    }
-
-    .timer-ring-container {
-      position: relative;
-      width: min(78vw, 320px);
-      aspect-ratio: 1;
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-
-    .timer-ring-svg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-    }
-
-    .timer-ring-track {
-      fill: none;
-      stroke: var(--color-border);
-      stroke-width: 2;
-    }
-
-    .timer-ring-progress {
-      fill: none;
-      stroke: var(--color-accent-start);
-      stroke-width: 2;
-      stroke-linecap: round;
-      transition: stroke-dashoffset 100ms linear;
-    }
-
-    .timer-ring-ticks {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+      padding: 80px 24px 40px;
     }
 
     .timer-display-value {
       font-family: var(--font-display);
-      font-weight: 400;
-      font-size: clamp(38px, 11vw, 56px);
-      letter-spacing: -0.02em;
+      font-weight: 200;
+      font-size: clamp(68px, 18vw, 96px);
+      letter-spacing: -0.03em;
       color: var(--color-text-primary);
-      cursor: pointer;
-      padding: 16px 8px;
-      border-radius: 12px;
-      transition: background 150ms ease, transform 100ms ease;
       text-align: center;
       line-height: 1;
       font-variant-numeric: tabular-nums;
-      position: relative;
-      z-index: 2;
-    }
-
-    .timer-display-value:active {
-      background: rgba(245, 158, 11, 0.08);
-      transform: scale(0.98);
     }
 
     .timer-display-value .digits-centiseconds {
-      font-size: 0.55em;
-      color: var(--color-text-muted);
-      margin-left: 2px;
-      font-weight: 300;
-    }
-
-    .timer-edit-hint {
-      margin-top: 12px;
-      font-family: var(--font-ui);
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--color-text-dim);
+      font-weight: 200;
+      color: var(--color-text-primary);
     }
 
     .controls-section {
@@ -209,60 +96,56 @@
     }
 
     .control-button {
-      width: 76px;
-      height: 76px;
+      width: 84px;
+      height: 84px;
       border-radius: 50%;
       border: none;
       background: var(--color-surface);
       color: var(--color-text-primary);
       font-family: var(--font-ui);
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      font-size: 17px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
       cursor: pointer;
       touch-action: manipulation;
       position: relative;
-      transition: transform 100ms ease, background 150ms ease;
-      border: 1.5px solid var(--color-border);
+      transition: transform 100ms ease, opacity 150ms ease;
     }
 
     .control-button:active {
       transform: scale(0.94);
+      opacity: 0.7;
     }
 
     .control-button.primary-action {
-      background: var(--color-accent-start);
-      color: #0a1e16;
-      border-color: transparent;
-      box-shadow: 0 0 32px rgba(16, 185, 129, 0.25);
+      background: var(--color-accent-start-bg);
+      color: var(--color-accent-start-text);
     }
 
     .control-button.primary-action.is-stop-state {
-      background: var(--color-accent-stop);
-      color: #1e0a0a;
-      box-shadow: 0 0 32px rgba(239, 68, 68, 0.25);
+      background: var(--color-accent-stop-bg);
+      color: var(--color-accent-stop-text);
     }
 
     .control-button.secondary-action {
-      color: var(--color-text-muted);
-    }
-
-    .control-button.secondary-action.is-enabled {
       color: var(--color-text-primary);
     }
 
+    .control-button.secondary-action:disabled {
+      color: var(--color-text-dim);
+      opacity: 1;
+    }
+
     .control-button:disabled {
-      opacity: 0.4;
       cursor: not-allowed;
     }
 
     .laps-section {
-      max-height: 38vh;
+      flex: 1;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      padding: 0 24px 24px;
-      flex-shrink: 0;
+      padding: 8px 24px 24px;
     }
 
     .laps-section::-webkit-scrollbar { display: none; }
@@ -270,22 +153,22 @@
     .laps-empty-state {
       text-align: center;
       padding: 24px 0 8px;
-      font-family: var(--font-display);
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      font-family: var(--font-ui);
+      font-size: 13px;
       color: var(--color-text-dim);
     }
 
     .lap-row {
       display: grid;
-      grid-template-columns: 56px 1fr auto auto;
+      grid-template-columns: 1fr auto auto;
       align-items: center;
-      gap: 12px;
-      padding: 14px 8px;
-      border-bottom: 1px solid var(--color-border);
+      gap: 16px;
+      padding: 16px 4px;
+      border-bottom: 0.5px solid var(--color-border);
       font-family: var(--font-display);
-      font-size: 15px;
+      font-size: 17px;
+      font-weight: 300;
+      color: var(--color-text-primary);
       transition: background 150ms ease;
     }
 
@@ -293,44 +176,37 @@
       background: var(--color-surface);
     }
 
-    .lap-row.is-best-lap { color: var(--color-accent-start); }
-    .lap-row.is-worst-lap { color: var(--color-accent-stop); }
+    .lap-row.is-best-lap { color: var(--color-accent-start-text); }
+    .lap-row.is-worst-lap { color: var(--color-accent-stop-text); }
 
     .lap-row-number {
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      color: var(--color-text-muted);
-      text-transform: uppercase;
+      font-weight: 300;
     }
 
     .lap-row-duration {
       font-variant-numeric: tabular-nums;
       cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 6px;
-      margin: -4px -8px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      margin: -6px 0;
+      letter-spacing: -0.01em;
     }
 
-    .lap-row-duration:active { background: rgba(245, 158, 11, 0.1); }
-
-    .lap-row-split {
-      font-size: 12px;
-      color: var(--color-text-muted);
-      font-variant-numeric: tabular-nums;
-    }
+    .lap-row-duration:active { background: rgba(255, 159, 10, 0.15); }
 
     .lap-row-delete-button {
       background: none;
       border: none;
       color: var(--color-text-dim);
-      font-size: 18px;
+      font-size: 22px;
       cursor: pointer;
       padding: 4px 8px;
       touch-action: manipulation;
       line-height: 1;
+      font-weight: 300;
     }
 
-    .lap-row-delete-button:active { color: var(--color-accent-stop); }
+    .lap-row-delete-button:active { color: var(--color-accent-stop-text); }
 
     /* Edit modal */
     .edit-modal-backdrop {
@@ -452,30 +328,14 @@
   </style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="app-title">Chronograph</div>
-    <div class="app-status-indicator" id="appStatusIndicator">
-      <span class="status-dot"></span>
-      <span id="appStatusLabel">Ready</span>
-    </div>
-  </header>
-
   <section class="timer-display-section">
-    <div class="timer-ring-container">
-      <svg class="timer-ring-svg" viewBox="0 0 200 200">
-        <circle class="timer-ring-track" cx="100" cy="100" r="96" />
-        <circle class="timer-ring-progress" id="timerRingProgress" cx="100" cy="100" r="96"
-                stroke-dasharray="603.18" stroke-dashoffset="603.18" />
-      </svg>
-      <div class="timer-display-value" id="timerDisplayValue" role="button" aria-label="Tap to edit total time">
-        00:00<span class="digits-centiseconds">.00</span>
-      </div>
+    <div class="timer-display-value" id="timerDisplayValue">
+      00:00<span class="digits-centiseconds">.00</span>
     </div>
-    <div class="timer-edit-hint">Tap time to edit</div>
   </section>
 
   <section class="controls-section">
-    <button class="control-button secondary-action" id="lapResetButton">Lap</button>
+    <button class="control-button secondary-action" id="lapResetButton" disabled>Lap</button>
     <button class="control-button primary-action" id="startStopButton">Start</button>
   </section>
 
@@ -507,11 +367,48 @@
       nextLapId: 1,
     };
 
+    // ===== Persistence =====
+    const STORAGE_KEY_STATE = 'chronograph:state:v1';
+
+    function persistStateToStorage() {
+      try {
+        if (typeof localStorage === 'undefined') return;
+        const serializedState = JSON.stringify(stopwatchState);
+        localStorage.setItem(STORAGE_KEY_STATE, serializedState);
+      } catch (storageError) {
+        // Quota exceeded, security error, or storage unavailable — fail silently
+      }
+    }
+
+    function loadPersistedStateFromStorage() {
+      try {
+        if (typeof localStorage === 'undefined') return;
+        const rawSavedJson = localStorage.getItem(STORAGE_KEY_STATE);
+        if (!rawSavedJson) return;
+        const parsedState = JSON.parse(rawSavedJson);
+        if (typeof parsedState !== 'object' || parsedState === null) return;
+
+        stopwatchState.isRunning = Boolean(parsedState.isRunning);
+        stopwatchState.segmentStartTimestamp = (typeof parsedState.segmentStartTimestamp === 'number')
+          ? parsedState.segmentStartTimestamp : null;
+        stopwatchState.accumulatedBeforeSegmentMs = (typeof parsedState.accumulatedBeforeSegmentMs === 'number')
+          ? parsedState.accumulatedBeforeSegmentMs : 0;
+        stopwatchState.laps = Array.isArray(parsedState.laps)
+          ? parsedState.laps.filter(lapEntry => lapEntry && typeof lapEntry.lapId === 'number' && typeof lapEntry.splitTimeMs === 'number')
+          : [];
+        stopwatchState.nextLapId = (typeof parsedState.nextLapId === 'number') ? parsedState.nextLapId : 1;
+
+        // Safety: marked running but no anchor timestamp -> treat as paused
+        if (stopwatchState.isRunning && stopwatchState.segmentStartTimestamp === null) {
+          stopwatchState.isRunning = false;
+        }
+      } catch (storageError) {
+        // Corrupt or missing — fall through with defaults
+      }
+    }
+
     // ===== DOM refs =====
     const timerDisplayValue = document.getElementById('timerDisplayValue');
-    const timerRingProgress = document.getElementById('timerRingProgress');
-    const appStatusIndicator = document.getElementById('appStatusIndicator');
-    const appStatusLabel = document.getElementById('appStatusLabel');
     const startStopButton = document.getElementById('startStopButton');
     const lapResetButton = document.getElementById('lapResetButton');
     const lapsSection = document.getElementById('lapsSection');
@@ -600,22 +497,6 @@
       const totalElapsedMs = getCurrentTotalElapsedMs();
       const formatted = formatElapsedTimeForDisplay(totalElapsedMs, true);
       timerDisplayValue.innerHTML = `${formatted.mainPart}<span class="digits-centiseconds">.${formatted.centiPart}</span>`;
-
-      // Progress ring: one full sweep = 60 seconds
-      const ringCircumference = 603.18;
-      const sweepProgressFraction = (totalElapsedMs % 60000) / 60000;
-      timerRingProgress.setAttribute('stroke-dashoffset', ringCircumference * (1 - sweepProgressFraction));
-    }
-
-    function renderStatusIndicator() {
-      if (stopwatchState.isRunning) {
-        appStatusIndicator.classList.add('is-running');
-        appStatusLabel.textContent = 'Running';
-      } else {
-        appStatusIndicator.classList.remove('is-running');
-        const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
-        appStatusLabel.textContent = hasAnyTime ? 'Paused' : 'Ready';
-      }
     }
 
     function renderControlButtons() {
@@ -623,20 +504,19 @@
         startStopButton.textContent = 'Stop';
         startStopButton.classList.add('is-stop-state');
         lapResetButton.textContent = 'Lap';
-        lapResetButton.classList.add('is-enabled');
+        lapResetButton.disabled = false;
       } else {
         startStopButton.textContent = 'Start';
         startStopButton.classList.remove('is-stop-state');
         const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
         lapResetButton.textContent = hasAnyTime ? 'Reset' : 'Lap';
-        lapResetButton.classList.toggle('is-enabled', hasAnyTime);
+        lapResetButton.disabled = !hasAnyTime;
       }
     }
 
     function renderLapsList() {
       if (stopwatchState.laps.length === 0) {
         lapsEmptyState.style.display = 'block';
-        // Remove any existing lap rows
         const existingRows = lapsSection.querySelectorAll('.lap-row');
         existingRows.forEach(rowElement => rowElement.remove());
         return;
@@ -644,13 +524,11 @@
 
       lapsEmptyState.style.display = 'none';
 
-      // Compute best/worst lap durations
       const lapDurationsMs = stopwatchState.laps.map((_, lapIndex) => getLapDurationMs(lapIndex));
       const fastestDurationMs = Math.min(...lapDurationsMs);
       const slowestDurationMs = Math.max(...lapDurationsMs);
       const hasMultipleLaps = stopwatchState.laps.length >= 2;
 
-      // Clear and rebuild (simple, fine for tens of laps)
       const existingRows = lapsSection.querySelectorAll('.lap-row');
       existingRows.forEach(rowElement => rowElement.remove());
 
@@ -666,14 +544,12 @@
         if (hasMultipleLaps && lapDurationMs === slowestDurationMs) lapRowElement.classList.add('is-worst-lap');
 
         const durationFormatted = formatElapsedTimeForDisplay(lapDurationMs, true);
-        const splitFormatted = formatElapsedTimeForDisplay(lapEntry.splitTimeMs, true);
 
         lapRowElement.innerHTML = `
           <div class="lap-row-number">Lap ${lapNumber}</div>
           <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit lap ${lapNumber}">
-            ${durationFormatted.mainPart}<span style="font-size:0.7em;color:var(--color-text-muted)">.${durationFormatted.centiPart}</span>
+            ${durationFormatted.mainPart}.${durationFormatted.centiPart}
           </div>
-          <div class="lap-row-split">${splitFormatted.mainPart}.${splitFormatted.centiPart}</div>
           <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
         `;
 
@@ -683,7 +559,6 @@
 
     function renderAll() {
       renderTimerDisplay();
-      renderStatusIndicator();
       renderControlButtons();
       renderLapsList();
     }
@@ -699,6 +574,7 @@
         stopwatchState.segmentStartTimestamp = Date.now();
         stopwatchState.isRunning = true;
       }
+      persistStateToStorage();
       renderAll();
     }
 
@@ -710,6 +586,7 @@
           lapId: stopwatchState.nextLapId++,
           splitTimeMs: currentTotalMs,
         });
+        persistStateToStorage();
         renderAll();
       } else {
         const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
@@ -719,6 +596,7 @@
         stopwatchState.segmentStartTimestamp = null;
         stopwatchState.laps = [];
         stopwatchState.nextLapId = 1;
+        persistStateToStorage();
         renderAll();
       }
     }
@@ -726,38 +604,20 @@
     function handleDeleteLapPress(lapId) {
       const lapIndexToDelete = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
       if (lapIndexToDelete === -1) return;
-
-      // Deleting a lap absorbs its duration into the next lap (or into the current segment if it's the last lap)
-      // Simplest semantics: just remove the split. Following laps' durations stretch because previous split is now earlier.
       stopwatchState.laps.splice(lapIndexToDelete, 1);
+      persistStateToStorage();
       renderAll();
     }
 
     // ===== Editing =====
     const editModalContext = {
-      modeKind: null,    // 'total' | 'lap'
       targetLapId: null,
     };
-
-    function openEditModalForTotal() {
-      editModalContext.modeKind = 'total';
-      editModalContext.targetLapId = null;
-      editModalTitle.textContent = 'Edit Total Time';
-
-      const currentTotalMs = getCurrentTotalElapsedMs();
-      const formatted = formatElapsedTimeForDisplay(currentTotalMs, true);
-      editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
-
-      editModalFormatHint.classList.remove('is-error');
-      editModalFormatHint.textContent = 'Format: MM:SS.cc or HH:MM:SS.cc';
-      showEditModal();
-    }
 
     function openEditModalForLap(lapId) {
       const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
       if (lapIndex === -1) return;
 
-      editModalContext.modeKind = 'lap';
       editModalContext.targetLapId = lapId;
       editModalTitle.textContent = `Edit Lap ${lapIndex + 1} Duration`;
 
@@ -772,7 +632,6 @@
 
     function showEditModal() {
       editModalBackdrop.classList.add('is-visible');
-      // Focus the input but only after the slide-up animation gets going
       setTimeout(() => {
         editModalInput.focus();
         editModalInput.select();
@@ -792,63 +651,39 @@
         editModalFormatHint.textContent = 'Invalid format';
         return;
       }
-
-      if (editModalContext.modeKind === 'total') {
-        const lastLapSplitMs = stopwatchState.laps.length > 0
-          ? stopwatchState.laps[stopwatchState.laps.length - 1].splitTimeMs
-          : 0;
-
-        if (parsedMs < lastLapSplitMs) {
-          editModalFormatHint.classList.add('is-error');
-          editModalFormatHint.textContent = `Must be ≥ last lap split (${formatElapsedTimeForDisplay(lastLapSplitMs, false)})`;
-          return;
-        }
-
-        if (stopwatchState.isRunning) {
-          // Adjust segmentStartTimestamp so that the live read equals parsedMs
-          stopwatchState.segmentStartTimestamp = Date.now() - (parsedMs - stopwatchState.accumulatedBeforeSegmentMs);
-        } else {
-          stopwatchState.accumulatedBeforeSegmentMs = parsedMs;
-        }
-        hideEditModal();
-        renderAll();
+      if (parsedMs < 0) {
+        editModalFormatHint.classList.add('is-error');
+        editModalFormatHint.textContent = 'Must be ≥ 0';
         return;
       }
 
-      if (editModalContext.modeKind === 'lap') {
-        if (parsedMs < 0) {
-          editModalFormatHint.classList.add('is-error');
-          editModalFormatHint.textContent = 'Must be ≥ 0';
-          return;
-        }
+      const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === editModalContext.targetLapId);
+      if (lapIndex === -1) { hideEditModal(); return; }
 
-        const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === editModalContext.targetLapId);
-        if (lapIndex === -1) { hideEditModal(); return; }
+      const oldDurationMs = getLapDurationMs(lapIndex);
+      const deltaMs = parsedMs - oldDurationMs;
 
-        const oldDurationMs = getLapDurationMs(lapIndex);
-        const deltaMs = parsedMs - oldDurationMs;
-
-        // Shift this lap's split and all subsequent splits by delta (so this lap's duration changes, others' durations stay)
-        for (let shiftIndex = lapIndex; shiftIndex < stopwatchState.laps.length; shiftIndex++) {
-          stopwatchState.laps[shiftIndex].splitTimeMs += deltaMs;
-        }
-
-        // Total shifts by delta as well
-        if (stopwatchState.isRunning) {
-          stopwatchState.segmentStartTimestamp -= deltaMs;
-        } else {
-          stopwatchState.accumulatedBeforeSegmentMs += deltaMs;
-        }
-
-        hideEditModal();
-        renderAll();
+      // Shift this lap's split and all subsequent splits by delta
+      // This makes this lap's duration change while others' durations stay the same
+      for (let shiftIndex = lapIndex; shiftIndex < stopwatchState.laps.length; shiftIndex++) {
+        stopwatchState.laps[shiftIndex].splitTimeMs += deltaMs;
       }
+
+      // Total shifts by delta as well
+      if (stopwatchState.isRunning) {
+        stopwatchState.segmentStartTimestamp -= deltaMs;
+      } else {
+        stopwatchState.accumulatedBeforeSegmentMs += deltaMs;
+      }
+
+      persistStateToStorage();
+      hideEditModal();
+      renderAll();
     }
 
     // ===== Event wiring =====
     startStopButton.addEventListener('click', handleStartStopPress);
     lapResetButton.addEventListener('click', handleLapOrResetPress);
-    timerDisplayValue.addEventListener('click', openEditModalForTotal);
 
     lapsSection.addEventListener('click', (clickEvent) => {
       const durationTarget = clickEvent.target.closest('.lap-row-duration');
@@ -881,8 +716,16 @@
     }
     requestAnimationFrame(animationFrameTick);
 
-    // Initial render
+    // Safety: save state when page is hidden (user switches away or kills the app)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') persistStateToStorage();
+    });
+    window.addEventListener('pagehide', persistStateToStorage);
+
+    // Load any previous session, then initial render
+    loadPersistedStateFromStorage();
     renderAll();
   </script>
 </body>
 </html>
+x
