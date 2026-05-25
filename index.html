@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <title>Chronograph</title>
+
+  <!-- iOS PWA meta tags: these make Add-to-Home-Screen behave like a real app -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Chronograph" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0c0c0f" />
+
+  <!-- Favicon: stopwatch glyph as inline SVG data URL -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='36' r='22' fill='none' stroke='%23f0eee8' stroke-width='4'/><line x1='32' y1='36' x2='32' y2='20' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/><rect x='26' y='4' width='12' height='6' fill='%23f0eee8'/></svg>" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --color-background: #0c0c0f;
+      --color-surface: #16161b;
+      --color-surface-raised: #1d1d24;
+      --color-border: #26262e;
+      --color-text-primary: #f0eee8;
+      --color-text-muted: #6b6b73;
+      --color-text-dim: #45454d;
+      --color-accent-start: #10b981;
+      --color-accent-stop: #ef4444;
+      --color-accent-edit: #f59e0b;
+      --font-display: 'Azeret Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      --font-ui: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--color-background);
+      color: var(--color-text-primary);
+      font-family: var(--font-ui);
+      overscroll-behavior: contain;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
+        var(--color-background);
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px 8px;
+      flex-shrink: 0;
+    }
+
+    .app-title {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .app-status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .app-status-indicator .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-text-dim);
+      transition: background 200ms ease, box-shadow 200ms ease;
+    }
+
+    .app-status-indicator.is-running .status-dot {
+      background: var(--color-accent-start);
+      box-shadow: 0 0 12px var(--color-accent-start);
+      animation: pulse-dot 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .timer-display-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 24px;
+      position: relative;
+    }
+
+    .timer-ring-container {
+      position: relative;
+      width: min(78vw, 320px);
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .timer-ring-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .timer-ring-track {
+      fill: none;
+      stroke: var(--color-border);
+      stroke-width: 2;
+    }
+
+    .timer-ring-progress {
+      fill: none;
+      stroke: var(--color-accent-start);
+      stroke-width: 2;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 100ms linear;
+    }
+
+    .timer-ring-ticks {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .timer-display-value {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(38px, 11vw, 56px);
+      letter-spacing: -0.02em;
+      color: var(--color-text-primary);
+      cursor: pointer;
+      padding: 16px 8px;
+      border-radius: 12px;
+      transition: background 150ms ease, transform 100ms ease;
+      text-align: center;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      position: relative;
+      z-index: 2;
+    }
+
+    .timer-display-value:active {
+      background: rgba(245, 158, 11, 0.08);
+      transform: scale(0.98);
+    }
+
+    .timer-display-value .digits-centiseconds {
+      font-size: 0.55em;
+      color: var(--color-text-muted);
+      margin-left: 2px;
+      font-weight: 300;
+    }
+
+    .timer-edit-hint {
+      margin-top: 12px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-text-dim);
+    }
+
+    .controls-section {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 16px 32px 24px;
+      flex-shrink: 0;
+    }
+
+    .control-button {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      border: none;
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      touch-action: manipulation;
+      position: relative;
+      transition: transform 100ms ease, background 150ms ease;
+      border: 1.5px solid var(--color-border);
+    }
+
+    .control-button:active {
+      transform: scale(0.94);
+    }
+
+    .control-button.primary-action {
+      background: var(--color-accent-start);
+      color: #0a1e16;
+      border-color: transparent;
+      box-shadow: 0 0 32px rgba(16, 185, 129, 0.25);
+    }
+
+    .control-button.primary-action.is-stop-state {
+      background: var(--color-accent-stop);
+      color: #1e0a0a;
+      box-shadow: 0 0 32px rgba(239, 68, 68, 0.25);
+    }
+
+    .control-button.secondary-action {
+      color: var(--color-text-muted);
+    }
+
+    .control-button.secondary-action.is-enabled {
+      color: var(--color-text-primary);
+    }
+
+    .control-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .laps-section {
+      max-height: 38vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 24px 24px;
+      flex-shrink: 0;
+    }
+
+    .laps-section::-webkit-scrollbar { display: none; }
+
+    .laps-empty-state {
+      text-align: center;
+      padding: 24px 0 8px;
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-text-dim);
+    }
+
+    .lap-row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto auto;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 8px;
+      border-bottom: 1px solid var(--color-border);
+      font-family: var(--font-display);
+      font-size: 15px;
+      transition: background 150ms ease;
+    }
+
+    .lap-row:active {
+      background: var(--color-surface);
+    }
+
+    .lap-row.is-best-lap { color: var(--color-accent-start); }
+    .lap-row.is-worst-lap { color: var(--color-accent-stop); }
+
+    .lap-row-number {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+    }
+
+    .lap-row-duration {
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin: -4px -8px;
+    }
+
+    .lap-row-duration:active { background: rgba(245, 158, 11, 0.1); }
+
+    .lap-row-split {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .lap-row-delete-button {
+      background: none;
+      border: none;
+      color: var(--color-text-dim);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      touch-action: manipulation;
+      line-height: 1;
+    }
+
+    .lap-row-delete-button:active { color: var(--color-accent-stop); }
+
+    /* Edit modal */
+    .edit-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: var(--safe-bottom);
+    }
+
+    .edit-modal-backdrop.is-visible {
+      display: flex;
+      animation: fade-in 200ms ease;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .edit-modal-sheet {
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      border-radius: 24px 24px 0 0;
+      padding: 24px 24px 32px;
+      width: 100%;
+      max-width: 500px;
+      animation: slide-up 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    @keyframes slide-up {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .edit-modal-title {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      margin: 0 0 16px;
+      text-align: center;
+    }
+
+    .edit-modal-input {
+      width: 100%;
+      background: var(--color-background);
+      border: 1.5px solid var(--color-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--color-text-primary);
+      text-align: center;
+      letter-spacing: -0.01em;
+      outline: none;
+      font-variant-numeric: tabular-nums;
+      transition: border-color 150ms ease;
+    }
+
+    .edit-modal-input:focus {
+      border-color: var(--color-accent-edit);
+    }
+
+    .edit-modal-format-hint {
+      text-align: center;
+      margin-top: 12px;
+      font-family: var(--font-display);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--color-text-dim);
+    }
+
+    .edit-modal-format-hint.is-error {
+      color: var(--color-accent-stop);
+    }
+
+    .edit-modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .edit-modal-button {
+      padding: 16px;
+      border-radius: 12px;
+      border: none;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 100ms ease;
+    }
+
+    .edit-modal-button:active { transform: scale(0.97); }
+
+    .edit-modal-button.cancel-action {
+      background: var(--color-surface-raised);
+      color: var(--color-text-muted);
+    }
+
+    .edit-modal-button.save-action {
+      background: var(--color-accent-edit);
+      color: #1f1408;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-title">Chronograph</div>
+    <div class="app-status-indicator" id="appStatusIndicator">
+      <span class="status-dot"></span>
+      <span id="appStatusLabel">Ready</span>
+    </div>
+  </header>
+
+  <section class="timer-display-section">
+    <div class="timer-ring-container">
+      <svg class="timer-ring-svg" viewBox="0 0 200 200">
+        <circle class="timer-ring-track" cx="100" cy="100" r="96" />
+        <circle class="timer-ring-progress" id="timerRingProgress" cx="100" cy="100" r="96"
+                stroke-dasharray="603.18" stroke-dashoffset="603.18" />
+      </svg>
+      <div class="timer-display-value" id="timerDisplayValue" role="button" aria-label="Tap to edit total time">
+        00:00<span class="digits-centiseconds">.00</span>
+      </div>
+    </div>
+    <div class="timer-edit-hint">Tap time to edit</div>
+  </section>
+
+  <section class="controls-section">
+    <button class="control-button secondary-action" id="lapResetButton">Lap</button>
+    <button class="control-button primary-action" id="startStopButton">Start</button>
+  </section>
+
+  <section class="laps-section" id="lapsSection">
+    <div class="laps-empty-state" id="lapsEmptyState">No laps recorded</div>
+  </section>
+
+  <!-- Edit modal -->
+  <div class="edit-modal-backdrop" id="editModalBackdrop">
+    <div class="edit-modal-sheet">
+      <h3 class="edit-modal-title" id="editModalTitle">Edit Time</h3>
+      <input class="edit-modal-input" id="editModalInput" type="text" inputmode="decimal"
+             autocomplete="off" autocorrect="off" spellcheck="false" />
+      <div class="edit-modal-format-hint" id="editModalFormatHint">Format: MM:SS.cc or HH:MM:SS.cc</div>
+      <div class="edit-modal-actions">
+        <button class="edit-modal-button cancel-action" id="editModalCancelButton">Cancel</button>
+        <button class="edit-modal-button save-action" id="editModalSaveButton">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== State =====
+    const stopwatchState = {
+      isRunning: false,
+      segmentStartTimestamp: null,        // wall-clock ms when current running segment started
+      accumulatedBeforeSegmentMs: 0,      // total ms accumulated before current running segment
+      laps: [],                            // [{ lapId, splitTimeMs }]
+      nextLapId: 1,
+    };
+
+    // ===== DOM refs =====
+    const timerDisplayValue = document.getElementById('timerDisplayValue');
+    const timerRingProgress = document.getElementById('timerRingProgress');
+    const appStatusIndicator = document.getElementById('appStatusIndicator');
+    const appStatusLabel = document.getElementById('appStatusLabel');
+    const startStopButton = document.getElementById('startStopButton');
+    const lapResetButton = document.getElementById('lapResetButton');
+    const lapsSection = document.getElementById('lapsSection');
+    const lapsEmptyState = document.getElementById('lapsEmptyState');
+    const editModalBackdrop = document.getElementById('editModalBackdrop');
+    const editModalTitle = document.getElementById('editModalTitle');
+    const editModalInput = document.getElementById('editModalInput');
+    const editModalFormatHint = document.getElementById('editModalFormatHint');
+    const editModalCancelButton = document.getElementById('editModalCancelButton');
+    const editModalSaveButton = document.getElementById('editModalSaveButton');
+
+    // ===== Time math =====
+    function getCurrentTotalElapsedMs() {
+      if (stopwatchState.isRunning) {
+        return stopwatchState.accumulatedBeforeSegmentMs + (Date.now() - stopwatchState.segmentStartTimestamp);
+      }
+      return stopwatchState.accumulatedBeforeSegmentMs;
+    }
+
+    function getLapDurationMs(lapIndex) {
+      const previousSplit = lapIndex === 0 ? 0 : stopwatchState.laps[lapIndex - 1].splitTimeMs;
+      return stopwatchState.laps[lapIndex].splitTimeMs - previousSplit;
+    }
+
+    // ===== Formatting =====
+    function formatElapsedTimeForDisplay(totalMs, includeCentiseconds = true) {
+      if (totalMs < 0) totalMs = 0;
+      const totalCentiseconds = Math.floor(totalMs / 10);
+      const centiseconds = totalCentiseconds % 100;
+      const totalSeconds = Math.floor(totalCentiseconds / 100);
+      const seconds = totalSeconds % 60;
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const minutes = totalMinutes % 60;
+      const hours = Math.floor(totalMinutes / 60);
+
+      const pad2 = (numericValue) => numericValue.toString().padStart(2, '0');
+
+      let mainPart;
+      if (hours > 0) {
+        mainPart = `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+      } else {
+        mainPart = `${pad2(minutes)}:${pad2(seconds)}`;
+      }
+
+      if (!includeCentiseconds) return mainPart;
+      return { mainPart, centiPart: pad2(centiseconds) };
+    }
+
+    function parseDisplayTextToMs(rawText) {
+      const trimmedText = rawText.trim();
+      if (!trimmedText) return null;
+      if (!/^[\d:.]+$/.test(trimmedText)) return null;
+
+      const colonParts = trimmedText.split(':');
+      if (colonParts.length > 3) return null;
+
+      const lastColonPart = colonParts[colonParts.length - 1];
+      const dotSplit = lastColonPart.split('.');
+      if (dotSplit.length > 2) return null;
+
+      const secondsString = dotSplit[0];
+      let centisecondsString = dotSplit[1] || '0';
+      if (centisecondsString.length > 2) centisecondsString = centisecondsString.substring(0, 2);
+      centisecondsString = centisecondsString.padEnd(2, '0');
+
+      const secondsValue = parseInt(secondsString, 10);
+      const centisecondsValue = parseInt(centisecondsString, 10);
+      if (isNaN(secondsValue) || isNaN(centisecondsValue)) return null;
+
+      let minutesValue = 0;
+      let hoursValue = 0;
+      if (colonParts.length >= 2) {
+        minutesValue = parseInt(colonParts[colonParts.length - 2], 10);
+        if (isNaN(minutesValue)) return null;
+      }
+      if (colonParts.length === 3) {
+        hoursValue = parseInt(colonParts[0], 10);
+        if (isNaN(hoursValue)) return null;
+      }
+
+      return ((hoursValue * 3600 + minutesValue * 60 + secondsValue) * 100 + centisecondsValue) * 10;
+    }
+
+    // ===== Rendering =====
+    function renderTimerDisplay() {
+      const totalElapsedMs = getCurrentTotalElapsedMs();
+      const formatted = formatElapsedTimeForDisplay(totalElapsedMs, true);
+      timerDisplayValue.innerHTML = `${formatted.mainPart}<span class="digits-centiseconds">.${formatted.centiPart}</span>`;
+
+      // Progress ring: one full sweep = 60 seconds
+      const ringCircumference = 603.18;
+      const sweepProgressFraction = (totalElapsedMs % 60000) / 60000;
+      timerRingProgress.setAttribute('stroke-dashoffset', ringCircumference * (1 - sweepProgressFraction));
+    }
+
+    function renderStatusIndicator() {
+      if (stopwatchState.isRunning) {
+        appStatusIndicator.classList.add('is-running');
+        appStatusLabel.textContent = 'Running';
+      } else {
+        appStatusIndicator.classList.remove('is-running');
+        const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
+        appStatusLabel.textContent = hasAnyTime ? 'Paused' : 'Ready';
+      }
+    }
+
+    function renderControlButtons() {
+      if (stopwatchState.isRunning) {
+        startStopButton.textContent = 'Stop';
+        startStopButton.classList.add('is-stop-state');
+        lapResetButton.textContent = 'Lap';
+        lapResetButton.classList.add('is-enabled');
+      } else {
+        startStopButton.textContent = 'Start';
+        startStopButton.classList.remove('is-stop-state');
+        const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
+        lapResetButton.textContent = hasAnyTime ? 'Reset' : 'Lap';
+        lapResetButton.classList.toggle('is-enabled', hasAnyTime);
+      }
+    }
+
+    function renderLapsList() {
+      if (stopwatchState.laps.length === 0) {
+        lapsEmptyState.style.display = 'block';
+        // Remove any existing lap rows
+        const existingRows = lapsSection.querySelectorAll('.lap-row');
+        existingRows.forEach(rowElement => rowElement.remove());
+        return;
+      }
+
+      lapsEmptyState.style.display = 'none';
+
+      // Compute best/worst lap durations
+      const lapDurationsMs = stopwatchState.laps.map((_, lapIndex) => getLapDurationMs(lapIndex));
+      const fastestDurationMs = Math.min(...lapDurationsMs);
+      const slowestDurationMs = Math.max(...lapDurationsMs);
+      const hasMultipleLaps = stopwatchState.laps.length >= 2;
+
+      // Clear and rebuild (simple, fine for tens of laps)
+      const existingRows = lapsSection.querySelectorAll('.lap-row');
+      existingRows.forEach(rowElement => rowElement.remove());
+
+      // Render newest first
+      for (let lapIndex = stopwatchState.laps.length - 1; lapIndex >= 0; lapIndex--) {
+        const lapEntry = stopwatchState.laps[lapIndex];
+        const lapDurationMs = lapDurationsMs[lapIndex];
+        const lapNumber = lapIndex + 1;
+
+        const lapRowElement = document.createElement('div');
+        lapRowElement.className = 'lap-row';
+        if (hasMultipleLaps && lapDurationMs === fastestDurationMs) lapRowElement.classList.add('is-best-lap');
+        if (hasMultipleLaps && lapDurationMs === slowestDurationMs) lapRowElement.classList.add('is-worst-lap');
+
+        const durationFormatted = formatElapsedTimeForDisplay(lapDurationMs, true);
+        const splitFormatted = formatElapsedTimeForDisplay(lapEntry.splitTimeMs, true);
+
+        lapRowElement.innerHTML = `
+          <div class="lap-row-number">Lap ${lapNumber}</div>
+          <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit lap ${lapNumber}">
+            ${durationFormatted.mainPart}<span style="font-size:0.7em;color:var(--color-text-muted)">.${durationFormatted.centiPart}</span>
+          </div>
+          <div class="lap-row-split">${splitFormatted.mainPart}.${splitFormatted.centiPart}</div>
+          <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
+        `;
+
+        lapsSection.appendChild(lapRowElement);
+      }
+    }
+
+    function renderAll() {
+      renderTimerDisplay();
+      renderStatusIndicator();
+      renderControlButtons();
+      renderLapsList();
+    }
+
+    // ===== Actions =====
+    function handleStartStopPress() {
+      if (stopwatchState.isRunning) {
+        // Stop: bake current segment into accumulated
+        stopwatchState.accumulatedBeforeSegmentMs = getCurrentTotalElapsedMs();
+        stopwatchState.segmentStartTimestamp = null;
+        stopwatchState.isRunning = false;
+      } else {
+        stopwatchState.segmentStartTimestamp = Date.now();
+        stopwatchState.isRunning = true;
+      }
+      renderAll();
+    }
+
+    function handleLapOrResetPress() {
+      if (stopwatchState.isRunning) {
+        // Record a lap at current total
+        const currentTotalMs = getCurrentTotalElapsedMs();
+        stopwatchState.laps.push({
+          lapId: stopwatchState.nextLapId++,
+          splitTimeMs: currentTotalMs,
+        });
+        renderAll();
+      } else {
+        const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
+        if (!hasAnyTime) return;
+        // Reset everything
+        stopwatchState.accumulatedBeforeSegmentMs = 0;
+        stopwatchState.segmentStartTimestamp = null;
+        stopwatchState.laps = [];
+        stopwatchState.nextLapId = 1;
+        renderAll();
+      }
+    }
+
+    function handleDeleteLapPress(lapId) {
+      const lapIndexToDelete = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
+      if (lapIndexToDelete === -1) return;
+
+      // Deleting a lap absorbs its duration into the next lap (or into the current segment if it's the last lap)
+      // Simplest semantics: just remove the split. Following laps' durations stretch because previous split is now earlier.
+      stopwatchState.laps.splice(lapIndexToDelete, 1);
+      renderAll();
+    }
+
+    // ===== Editing =====
+    const editModalContext = {
+      modeKind: null,    // 'total' | 'lap'
+      targetLapId: null,
+    };
+
+    function openEditModalForTotal() {
+      editModalContext.modeKind = 'total';
+      editModalContext.targetLapId = null;
+      editModalTitle.textContent = 'Edit Total Time';
+
+      const currentTotalMs = getCurrentTotalElapsedMs();
+      const formatted = formatElapsedTimeForDisplay(currentTotalMs, true);
+      editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
+
+      editModalFormatHint.classList.remove('is-error');
+      editModalFormatHint.textContent = 'Format: MM:SS.cc or HH:MM:SS.cc';
+      showEditModal();
+    }
+
+    function openEditModalForLap(lapId) {
+      const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
+      if (lapIndex === -1) return;
+
+      editModalContext.modeKind = 'lap';
+      editModalContext.targetLapId = lapId;
+      editModalTitle.textContent = `Edit Lap ${lapIndex + 1} Duration`;
+
+      const lapDurationMs = getLapDurationMs(lapIndex);
+      const formatted = formatElapsedTimeForDisplay(lapDurationMs, true);
+      editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
+
+      editModalFormatHint.classList.remove('is-error');
+      editModalFormatHint.textContent = 'Format: MM:SS.cc or HH:MM:SS.cc';
+      showEditModal();
+    }
+
+    function showEditModal() {
+      editModalBackdrop.classList.add('is-visible');
+      // Focus the input but only after the slide-up animation gets going
+      setTimeout(() => {
+        editModalInput.focus();
+        editModalInput.select();
+      }, 100);
+    }
+
+    function hideEditModal() {
+      editModalBackdrop.classList.remove('is-visible');
+      editModalInput.blur();
+    }
+
+    function handleEditModalSave() {
+      const parsedMs = parseDisplayTextToMs(editModalInput.value);
+
+      if (parsedMs === null) {
+        editModalFormatHint.classList.add('is-error');
+        editModalFormatHint.textContent = 'Invalid format';
+        return;
+      }
+
+      if (editModalContext.modeKind === 'total') {
+        const lastLapSplitMs = stopwatchState.laps.length > 0
+          ? stopwatchState.laps[stopwatchState.laps.length - 1].splitTimeMs
+          : 0;
+
+        if (parsedMs < lastLapSplitMs) {
+          editModalFormatHint.classList.add('is-error');
+          editModalFormatHint.textContent = `Must be ≥ last lap split (${formatElapsedTimeForDisplay(lastLapSplitMs, false)})`;
+          return;
+        }
+
+        if (stopwatchState.isRunning) {
+          // Adjust segmentStartTimestamp so that the live read equals parsedMs
+          stopwatchState.segmentStartTimestamp = Date.now() - (parsedMs - stopwatchState.accumulatedBeforeSegmentMs);
+        } else {
+          stopwatchState.accumulatedBeforeSegmentMs = parsedMs;
+        }
+        hideEditModal();
+        renderAll();
+        return;
+      }
+
+      if (editModalContext.modeKind === 'lap') {
+        if (parsedMs < 0) {
+          editModalFormatHint.classList.add('is-error');
+          editModalFormatHint.textContent = 'Must be ≥ 0';
+          return;
+        }
+
+        const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === editModalContext.targetLapId);
+        if (lapIndex === -1) { hideEditModal(); return; }
+
+        const oldDurationMs = getLapDurationMs(lapIndex);
+        const deltaMs = parsedMs - oldDurationMs;
+
+        // Shift this lap's split and all subsequent splits by delta (so this lap's duration changes, others' durations stay)
+        for (let shiftIndex = lapIndex; shiftIndex < stopwatchState.laps.length; shiftIndex++) {
+          stopwatchState.laps[shiftIndex].splitTimeMs += deltaMs;
+        }
+
+        // Total shifts by delta as well
+        if (stopwatchState.isRunning) {
+          stopwatchState.segmentStartTimestamp -= deltaMs;
+        } else {
+          stopwatchState.accumulatedBeforeSegmentMs += deltaMs;
+        }
+
+        hideEditModal();
+        renderAll();
+      }
+    }
+
+    // ===== Event wiring =====
+    startStopButton.addEventListener('click', handleStartStopPress);
+    lapResetButton.addEventListener('click', handleLapOrResetPress);
+    timerDisplayValue.addEventListener('click', openEditModalForTotal);
+
+    lapsSection.addEventListener('click', (clickEvent) => {
+      const durationTarget = clickEvent.target.closest('.lap-row-duration');
+      if (durationTarget) {
+        const lapId = parseInt(durationTarget.getAttribute('data-lap-id'), 10);
+        openEditModalForLap(lapId);
+        return;
+      }
+      const deleteTarget = clickEvent.target.closest('.lap-row-delete-button');
+      if (deleteTarget) {
+        const lapId = parseInt(deleteTarget.getAttribute('data-lap-id'), 10);
+        handleDeleteLapPress(lapId);
+      }
+    });
+
+    editModalCancelButton.addEventListener('click', hideEditModal);
+    editModalSaveButton.addEventListener('click', handleEditModalSave);
+    editModalBackdrop.addEventListener('click', (clickEvent) => {
+      if (clickEvent.target === editModalBackdrop) hideEditModal();
+    });
+    editModalInput.addEventListener('keydown', (keyEvent) => {
+      if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); handleEditModalSave(); }
+      if (keyEvent.key === 'Escape') hideEditModal();
+    });
+
+    // ===== Animation loop =====
+    function animationFrameTick() {
+      if (stopwatchState.isRunning) renderTimerDisplay();
+      requestAnimationFrame(animationFrameTick);
+    }
+    requestAnimationFrame(animationFrameTick);
+
+    // Initial render
+    renderAll();
+  </script>
+</body>
+</html>
