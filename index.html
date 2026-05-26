@@ -279,6 +279,24 @@
     }
     .lap-row-delete-button:active { color: var(--color-accent-stop-text); }
 
+    .lap-row-merge-button {
+      background: none; border: none;
+      color: var(--color-text-dim);
+      cursor: pointer;
+      padding: 4px 6px;
+      touch-action: manipulation;
+      display: inline-flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .lap-row-merge-button:active { color: var(--color-accent-active-tab); }
+    .lap-row-merge-button[disabled] { visibility: hidden; pointer-events: none; }
+
+    .lap-row-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
     .lap-row-timestamp {
       margin-top: 4px;
       font-family: var(--font-ui);
@@ -380,15 +398,487 @@
     .edit-modal-button.cancel-action { background: var(--color-surface-raised); color: var(--color-text-muted); }
     .edit-modal-button.save-action { background: var(--color-accent-edit); color: #1f1408; }
     .edit-modal-button.danger-action { background: var(--color-accent-stop-text); color: #1f0808; }
+
+    /* ========== STATS VIEW ========== */
+    .timer-view-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    .timer-view-container.is-hidden { display: none; }
+    .stats-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
+    .stats-view.is-visible { display: flex; }
+
+    :root {
+      --color-surface-deep: #141416;
+      --color-success-bg: rgba(48, 209, 88, 0.18);
+      --color-warning: #ffd60a;
+      --color-warning-bg: rgba(255, 214, 10, 0.16);
+      --color-edit-bg: rgba(255, 159, 10, 0.18);
+      --color-missed-dot: #48484a;
+    }
+
+    .stats-top-bar {
+      position: sticky; top: var(--safe-top); z-index: 20;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 0.5px solid var(--color-border);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 10px var(--content-gutter);
+      gap: 8px;
+      min-height: 52px;
+      flex-shrink: 0;
+    }
+    .stats-back-button {
+      background: none; border: none; padding: 6px 0; margin: 0;
+      color: var(--color-accent-active-tab);
+      font-family: var(--font-ui);
+      font-size: 17px; font-weight: 400;
+      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+      justify-self: start;
+    }
+    .stats-back-button:active { opacity: 0.55; }
+    .stats-title {
+      font-family: var(--font-display);
+      font-size: 17px; font-weight: 600;
+      letter-spacing: -0.01em;
+      text-align: center;
+    }
+    .stats-activity-pill {
+      justify-self: end;
+      background: var(--color-surface);
+      border: 0.5px solid var(--color-border);
+      color: var(--color-text-primary);
+      border-radius: 999px;
+      padding: 7px 12px 7px 14px;
+      font-family: var(--font-ui);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      max-width: 160px;
+    }
+    .stats-activity-pill:active { background: var(--color-surface-raised); }
+    .stats-activity-pill-label {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .stats-activity-pill-chevron { color: var(--color-text-muted); font-size: 10px; margin-left: 2px; }
+
+    .stats-page { flex: 1; overflow-y: auto; padding: 16px 0 40px; -webkit-overflow-scrolling: touch; }
+    .stats-page::-webkit-scrollbar { display: none; }
+    .stats-section + .stats-section { margin-top: 16px; }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr 1fr;
+      gap: 8px;
+      padding: 0 var(--content-gutter);
+    }
+    .summary-card {
+      background: var(--color-surface);
+      border-radius: 16px;
+      padding: 14px 12px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      min-height: 104px;
+      position: relative;
+      overflow: hidden;
+    }
+    .summary-card-label {
+      font-family: var(--font-ui);
+      font-size: 11px; font-weight: 500;
+      color: var(--color-text-muted);
+      line-height: 1.25;
+    }
+    .summary-card-value {
+      font-family: var(--font-display);
+      font-weight: 300; letter-spacing: -0.03em;
+      color: var(--color-text-primary);
+      line-height: 1;
+      display: flex; align-items: baseline; gap: 4px;
+      margin-top: 8px;
+    }
+    .summary-card-value .number { font-size: 38px; }
+    .summary-card-value .unit { font-size: 14px; color: var(--color-text-muted); font-weight: 400; letter-spacing: 0; }
+    .summary-card-sub {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      margin-top: 6px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .delta-up { color: var(--color-accent-start-text); font-weight: 500; }
+    .delta-down { color: var(--color-accent-stop-text); font-weight: 500; }
+
+    .range-segmented {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      background: var(--color-surface);
+      border-radius: 999px;
+      padding: 3px;
+      margin: 0 var(--content-gutter);
+    }
+    .range-segment {
+      background: transparent; border: none;
+      color: var(--color-text-muted);
+      font-family: var(--font-ui);
+      font-size: 13px; font-weight: 500;
+      padding: 8px 0;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .range-segment.is-active {
+      background: var(--color-accent-active-tab);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .stats-card {
+      background: var(--color-surface);
+      border-radius: 16px;
+      margin: 0 var(--content-gutter);
+      padding: 16px;
+    }
+    .stats-card-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+    .stats-card-title {
+      font-family: var(--font-ui);
+      font-size: 13px; font-weight: 600;
+      color: var(--color-text-primary);
+    }
+    .stats-card-meta {
+      font-family: var(--font-display);
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+    .stats-card-meta strong { color: var(--color-text-primary); font-weight: 500; }
+
+    .chart-card { padding: 14px 12px 12px; }
+    .chart-wrap { position: relative; padding: 4px 4px 0; }
+    .chart-svg { display: block; width: 100%; height: 168px; overflow: visible; }
+    .chart-bar { cursor: pointer; transition: opacity 120ms ease; }
+    .chart-bar.dim { opacity: 0.35; }
+    .chart-bar-hit { fill: var(--color-accent-start-text); }
+    .chart-bar-low { fill: var(--color-warning); }
+    .chart-bar-miss-dot { fill: var(--color-missed-dot); }
+    .chart-goal-line { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.6; }
+    .chart-avg-line { stroke: rgba(255,255,255,0.7); stroke-width: 1.25; fill: none; }
+    .chart-axis-text { font-family: var(--font-display); font-size: 10px; fill: var(--color-text-dim); font-variant-numeric: tabular-nums; }
+    .chart-goal-label { font-family: var(--font-display); font-size: 10px; fill: var(--color-text-muted); font-weight: 500; }
+    .chart-tooltip {
+      position: absolute; top: 0;
+      transform: translate(-50%, -110%);
+      background: #ffffff; color: #000000;
+      border-radius: 8px; padding: 6px 9px;
+      font-family: var(--font-display);
+      font-size: 11px; font-weight: 500;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      z-index: 3;
+    }
+    .chart-tooltip.is-visible { opacity: 1; }
+    .chart-tooltip::after {
+      content: ''; position: absolute;
+      left: 50%; bottom: -4px;
+      transform: translateX(-50%);
+      width: 8px; height: 8px;
+      background: #ffffff;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+    }
+    .chart-tooltip-date { color: #6b6b70; font-weight: 400; font-size: 10px; display: block; }
+    .chart-xlabels {
+      display: flex; justify-content: space-between;
+      padding: 6px 4px 0;
+      font-family: var(--font-display);
+      font-size: 10px;
+      color: var(--color-text-dim);
+    }
+    .chart-legend {
+      display: flex; gap: 14px;
+      padding: 10px 4px 0;
+      border-top: 0.5px solid var(--color-border);
+      margin-top: 10px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      color: var(--color-text-muted);
+    }
+    .chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-swatch { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+    .legend-line { width: 12px; height: 1.5px; background: rgba(255,255,255,0.7); display: inline-block; }
+
+    .cal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .cal-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+    .cal-nav { display: flex; gap: 2px; }
+    .cal-nav-button {
+      background: var(--color-surface-raised);
+      border: none;
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      color: var(--color-text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cal-nav-button:active { background: var(--color-surface); }
+    .cal-nav-button:disabled { color: var(--color-text-dim); cursor: not-allowed; }
+    .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+    .cal-weekday {
+      font-family: var(--font-ui);
+      font-size: 11px; font-weight: 500;
+      color: var(--color-text-muted);
+      text-align: center;
+      padding: 2px 0;
+    }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-cell {
+      aspect-ratio: 1 / 1.08;
+      min-height: 46px;
+      border-radius: 10px;
+      position: relative;
+      padding: 5px 6px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      cursor: pointer;
+      background: transparent; border: none;
+      color: var(--color-text-primary);
+      font-family: var(--font-ui);
+      overflow: hidden;
+    }
+    .cal-cell:active { transform: scale(0.96); }
+    .cal-cell-empty { cursor: default; }
+    .cal-cell-empty:active { transform: none; }
+    .cal-cell-future { cursor: default; }
+    .cal-cell-future:active { transform: none; }
+    .cal-cell-hit { background: var(--color-success-bg); }
+    .cal-cell-low { background: var(--color-warning-bg); }
+    .cal-cell-miss { background: rgba(72, 72, 74, 0.18); }
+    .cal-cell-num { font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-align: left; line-height: 1; }
+    .cal-cell-hit .cal-cell-num { color: var(--color-accent-start-text); }
+    .cal-cell-low .cal-cell-num { color: var(--color-warning); }
+    .cal-cell-future .cal-cell-num { color: var(--color-text-dim); }
+    .cal-cell-dur {
+      font-family: var(--font-display);
+      font-size: 11px; font-weight: 500;
+      color: var(--color-text-primary);
+      text-align: center;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      padding-bottom: 1px;
+    }
+    .cal-cell-miss .cal-cell-dur { color: var(--color-text-dim); font-weight: 400; }
+    .cal-cell-future .cal-cell-dur { color: transparent; }
+    .cal-cell-today { box-shadow: inset 0 0 0 1.5px var(--color-accent-active-tab); }
+    .cal-cell-today .cal-cell-num { color: var(--color-accent-active-tab); font-weight: 700; }
+
+    .footer-note {
+      padding: 12px var(--content-gutter) 8px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    .footer-edit-link {
+      background: none; border: none; padding: 4px 6px; margin: 0;
+      color: var(--color-accent-edit);
+      font-family: var(--font-ui);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer;
+    }
+    .footer-edit-link:active { opacity: 0.6; }
+
+    /* Sheet (reusable) */
+    .sheet-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      z-index: 110;
+      display: none;
+      align-items: flex-end; justify-content: center;
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+    .sheet-backdrop.is-visible { display: flex; opacity: 1; }
+    .sheet {
+      background: var(--color-surface);
+      border-top: 0.5px solid var(--color-border);
+      border-radius: 24px 24px 0 0;
+      padding: 8px 24px calc(24px + var(--safe-bottom));
+      width: 100%;
+      max-width: 500px;
+      transform: translateY(100%);
+      transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .sheet-backdrop.is-visible .sheet { transform: translateY(0); }
+    .sheet-handle {
+      display: block;
+      width: 36px; height: 5px;
+      border-radius: 999px;
+      background: var(--color-text-dim);
+      margin: 6px auto 16px;
+    }
+    .sheet-title {
+      font-family: var(--font-display);
+      font-size: 17px; font-weight: 600;
+      letter-spacing: -0.01em;
+      text-align: center;
+      margin: 0 0 16px;
+    }
+    .sheet-subtitle {
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--color-text-muted);
+      text-align: center;
+      margin: -12px 0 16px;
+    }
+    .activity-list { display: flex; flex-direction: column; }
+    .activity-list-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 4px;
+      border-top: 0.5px solid var(--color-border);
+      background: none; border-left: none; border-right: none; border-bottom: none;
+      color: var(--color-text-primary);
+      font-family: var(--font-ui);
+      font-size: 16px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+    .activity-list-row:first-child { border-top: none; }
+    .activity-list-row:active { background: var(--color-surface-raised); }
+    .activity-list-row-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: var(--color-accent-active-tab); }
+    .activity-list-row-name { flex: 1; font-weight: 400; }
+    .activity-list-row-meta { font-family: var(--font-display); font-size: 12px; color: var(--color-text-muted); }
+    .activity-list-row.is-selected .activity-list-row-name { font-weight: 600; }
+    .activity-list-row-check { width: 18px; height: 18px; color: var(--color-accent-active-tab); flex-shrink: 0; opacity: 0; }
+    .activity-list-row.is-selected .activity-list-row-check { opacity: 1; }
+
+    .goal-input-row {
+      display: flex; align-items: baseline; justify-content: center;
+      gap: 8px;
+      padding: 8px 0 18px;
+    }
+    .goal-input-number {
+      font-family: var(--font-display);
+      font-weight: 200;
+      font-size: 72px;
+      letter-spacing: -0.03em;
+      color: var(--color-text-primary);
+      background: transparent;
+      border: none; outline: none;
+      width: 140px;
+      text-align: right;
+      padding: 0;
+      font-variant-numeric: tabular-nums;
+      -moz-appearance: textfield;
+    }
+    .goal-input-number::-webkit-outer-spin-button,
+    .goal-input-number::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .goal-input-unit { font-family: var(--font-display); font-weight: 300; font-size: 24px; color: var(--color-text-muted); }
+    .goal-chips {
+      display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .goal-chip {
+      background: var(--color-surface-raised);
+      border: 0.5px solid var(--color-border);
+      color: var(--color-text-primary);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-family: var(--font-ui);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    .goal-chip.is-selected {
+      background: var(--color-edit-bg);
+      color: var(--color-accent-edit);
+      border-color: transparent;
+    }
+    .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sheet-button {
+      padding: 15px;
+      border-radius: 12px; border: none; margin: 0;
+      font-family: var(--font-ui);
+      font-size: 15px; font-weight: 600;
+      cursor: pointer;
+    }
+    .sheet-button:active { transform: scale(0.97); }
+    .sheet-button.cancel { background: var(--color-surface-raised); color: var(--color-text-primary); }
+    .sheet-button.save { background: var(--color-accent-edit); color: #1f1408; }
+
+    .day-detail-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+    .day-detail-date { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: -0.02em; }
+    .day-detail-total { font-family: var(--font-display); font-size: 22px; font-weight: 300; letter-spacing: -0.02em; }
+    .day-detail-total.hit { color: var(--color-accent-start-text); }
+    .day-detail-total.low { color: var(--color-warning); }
+    .day-detail-total.miss { color: var(--color-text-dim); }
+    .day-detail-progress { height: 4px; background: var(--color-surface-deep); border-radius: 999px; overflow: hidden; margin-bottom: 4px; }
+    .day-detail-progress-fill { height: 100%; border-radius: 999px; transition: width 360ms cubic-bezier(0.32, 0.72, 0, 1); }
+    .day-detail-goal-text { font-family: var(--font-ui); font-size: 11px; color: var(--color-text-muted); margin-bottom: 18px; display: flex; justify-content: space-between; }
+    .day-laps-title { font-family: var(--font-ui); font-size: 11px; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 6px; }
+    .day-lap-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 12px;
+      align-items: baseline;
+      padding: 12px 0;
+      border-top: 0.5px solid var(--color-border);
+      font-family: var(--font-display);
+    }
+    .day-lap-row:first-of-type { border-top: none; }
+    .day-lap-num { color: var(--color-text-muted); font-size: 13px; }
+    .day-lap-when { font-family: var(--font-ui); font-size: 13px; color: var(--color-text-muted); }
+    .day-lap-dur { font-size: 17px; font-weight: 400; color: var(--color-text-primary); letter-spacing: -0.01em; }
+    .day-empty { padding: 20px 0; text-align: center; color: var(--color-text-muted); font-size: 13px; }
+
+    .stats-empty-state {
+      padding: 80px var(--content-gutter) 40px;
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 18px;
+    }
+    .stats-empty-illustration { width: 96px; height: 96px; color: var(--color-text-dim); }
+    .stats-empty-title { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: -0.02em; margin: 0; }
+    .stats-empty-sub { font-family: var(--font-ui); font-size: 14px; color: var(--color-text-muted); line-height: 1.45; max-width: 280px; margin: 0; }
   </style>
 </head>
 <body>
+
+  <div class="timer-view-container" id="timerViewContainer">
 
   <section class="activity-tabs-section">
     <div class="activity-tabs-scroller" id="activityTabsScroller"></div>
   </section>
 
   <section class="activity-controls-row">
+    <button class="activity-control-icon-button" id="openStatsButton" aria-label="Open stats">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+    </button>
+    <button class="activity-control-icon-button" id="moveActivityLeftButton" aria-label="Move activity left">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+    </button>
+    <button class="activity-control-icon-button" id="moveActivityRightButton" aria-label="Move activity right">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </button>
     <button class="activity-control-icon-button" id="renameActivityButton" aria-label="Rename activity">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 20h9"/>
@@ -429,6 +919,145 @@
     <div class="laps-empty-state" id="lapsEmptyState">No laps recorded</div>
   </section>
 
+  </div>
+  <!-- /timer-view-container -->
+
+  <div class="stats-view" id="statsView">
+    <header class="stats-top-bar">
+      <button class="stats-back-button" id="statsBackButton" aria-label="Back to timer">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>Back</span>
+      </button>
+      <div class="stats-title">Stats</div>
+      <button class="stats-activity-pill" id="statsActivityPillButton" aria-label="Switch activity">
+        <span class="stats-activity-pill-label" id="statsActivityPillLabel">—</span>
+        <span class="stats-activity-pill-chevron">▾</span>
+      </button>
+    </header>
+
+    <main class="stats-page" id="statsPage">
+      <section class="stats-section summary-cards" id="statsSummaryCards"></section>
+
+      <section class="stats-section">
+        <div class="range-segmented" id="statsRangeSegmented">
+          <button class="range-segment" data-range="7">7d</button>
+          <button class="range-segment is-active" data-range="30">30d</button>
+          <button class="range-segment" data-range="90">90d</button>
+          <button class="range-segment" data-range="365">1y</button>
+        </div>
+      </section>
+
+      <section class="stats-section">
+        <div class="stats-card chart-card">
+          <div class="stats-card-head">
+            <div class="stats-card-title">Daily minutes</div>
+            <div class="stats-card-meta" id="statsChartTotalLabel">—</div>
+          </div>
+          <div class="chart-wrap" id="statsChartWrap">
+            <svg class="chart-svg" id="statsChartSvg" preserveAspectRatio="none" viewBox="0 0 320 168"></svg>
+            <div class="chart-tooltip" id="statsChartTooltip">
+              <span class="chart-tooltip-date" id="statsChartTooltipDate">—</span>
+              <span id="statsChartTooltipValue">—</span>
+            </div>
+          </div>
+          <div class="chart-xlabels" id="statsChartXlabels"></div>
+          <div class="chart-legend">
+            <span><span class="legend-swatch" style="background:var(--color-accent-start-text)"></span>Goal hit</span>
+            <span><span class="legend-swatch" style="background:var(--color-warning)"></span>Below goal</span>
+            <span><span class="legend-line"></span>7-day avg</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="stats-section">
+        <div class="stats-card">
+          <div class="cal-head">
+            <div class="cal-title" id="statsCalTitle">—</div>
+            <div class="cal-nav">
+              <button class="cal-nav-button" id="statsCalPrevButton" aria-label="Previous month">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button class="cal-nav-button" id="statsCalNextButton" aria-label="Next month">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="cal-weekdays">
+            <div class="cal-weekday">S</div><div class="cal-weekday">M</div><div class="cal-weekday">T</div><div class="cal-weekday">W</div><div class="cal-weekday">T</div><div class="cal-weekday">F</div><div class="cal-weekday">S</div>
+          </div>
+          <div class="cal-grid" id="statsCalGrid"></div>
+        </div>
+      </section>
+
+      <div class="footer-note">
+        <span>Goal: <span id="statsFooterGoal">60 min/day</span> ·</span>
+        <button class="footer-edit-link" id="statsFooterEditButton">Edit</button>
+      </div>
+    </main>
+
+    <main class="stats-empty-state" id="statsEmptyState" style="display:none">
+      <svg class="stats-empty-illustration" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+        <rect x="12" y="58" width="14" height="22" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="32" y="42" width="14" height="38" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="52" y="50" width="14" height="30" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="72" y="32" width="14" height="48" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="6" y1="82" x2="92" y2="82" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="6" y1="26" x2="92" y2="26" stroke="currentColor" stroke-width="1" stroke-dasharray="3 4" opacity="0.5"/>
+      </svg>
+      <h2 class="stats-empty-title">No data yet</h2>
+      <p class="stats-empty-sub">Run the timer and record some laps. Your daily progress will show up here.</p>
+    </main>
+  </div>
+  <!-- /stats-view -->
+
+  <div class="sheet-backdrop" id="statsActivitySheetBackdrop">
+    <div class="sheet">
+      <span class="sheet-handle"></span>
+      <h3 class="sheet-title">Activity</h3>
+      <div class="activity-list" id="statsActivityList"></div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="statsGoalSheetBackdrop">
+    <div class="sheet">
+      <span class="sheet-handle"></span>
+      <h3 class="sheet-title">Daily Goal</h3>
+      <p class="sheet-subtitle">Minutes per day that counts as a "hit" for this activity</p>
+      <div class="goal-input-row">
+        <input class="goal-input-number" id="statsGoalInput" type="number" min="1" max="600" value="60" />
+        <span class="goal-input-unit">min</span>
+      </div>
+      <div class="goal-chips" id="statsGoalChips">
+        <button class="goal-chip" data-mins="15">15m</button>
+        <button class="goal-chip" data-mins="30">30m</button>
+        <button class="goal-chip is-selected" data-mins="60">60m</button>
+        <button class="goal-chip" data-mins="90">90m</button>
+        <button class="goal-chip" data-mins="120">2h</button>
+      </div>
+      <div class="sheet-actions">
+        <button class="sheet-button cancel" id="statsGoalCancelButton">Cancel</button>
+        <button class="sheet-button save" id="statsGoalSaveButton">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="statsDaySheetBackdrop">
+    <div class="sheet">
+      <span class="sheet-handle"></span>
+      <div class="day-detail-header">
+        <div class="day-detail-date" id="statsDayDetailDate">—</div>
+        <div class="day-detail-total" id="statsDayDetailTotal">—</div>
+      </div>
+      <div class="day-detail-progress"><div class="day-detail-progress-fill" id="statsDayDetailProgressFill" style="width:0%"></div></div>
+      <div class="day-detail-goal-text">
+        <span id="statsDayDetailGoalText">—</span>
+        <span id="statsDayDetailPctText">—</span>
+      </div>
+      <h4 class="day-laps-title">Sessions</h4>
+      <div id="statsDayLapList"></div>
+    </div>
+  </div>
+
   <div class="edit-modal-backdrop" id="editModalBackdrop">
     <div class="edit-modal-sheet">
       <h3 class="edit-modal-title" id="editModalTitle">Edit</h3>
@@ -461,6 +1090,7 @@
         laps: [],                                // [{ lapId, splitTimeMs, recordedAtWallClockMs }]
         nextLapId: 1,
         sessionStartedAtWallClockMs: null,      // when this session began (first Start after Reset)
+        dailyGoalMinutes: 60,                    // user's daily target in minutes (used for stats)
       };
     }
 
@@ -497,6 +1127,7 @@
         : [];
       sanitized.nextLapId = typeof rawActivity.nextLapId === 'number' ? rawActivity.nextLapId : 1;
       sanitized.sessionStartedAtWallClockMs = typeof rawActivity.sessionStartedAtWallClockMs === 'number' ? rawActivity.sessionStartedAtWallClockMs : null;
+      sanitized.dailyGoalMinutes = (typeof rawActivity.dailyGoalMinutes === 'number' && rawActivity.dailyGoalMinutes > 0) ? rawActivity.dailyGoalMinutes : 60;
       if (sanitized.isRunning && sanitized.segmentStartTimestamp === null) sanitized.isRunning = false;
       return sanitized;
     }
@@ -560,6 +1191,8 @@
     const activityTabsScroller = document.getElementById('activityTabsScroller');
     const renameActivityButton = document.getElementById('renameActivityButton');
     const deleteActivityButton = document.getElementById('deleteActivityButton');
+    const moveActivityLeftButton = document.getElementById('moveActivityLeftButton');
+    const moveActivityRightButton = document.getElementById('moveActivityRightButton');
     const timerDisplayValue = document.getElementById('timerDisplayValue');
     const sessionStartedLabel = document.getElementById('sessionStartedLabel');
     const startStopButton = document.getElementById('startStopButton');
@@ -700,6 +1333,10 @@
 
       deleteActivityButton.disabled = appState.activities.length <= 1;
 
+      const currentActivityIndex = appState.activities.findIndex(a => a.activityId === appState.currentActivityId);
+      moveActivityLeftButton.disabled = currentActivityIndex <= 0;
+      moveActivityRightButton.disabled = currentActivityIndex < 0 || currentActivityIndex >= appState.activities.length - 1;
+
       if (activeTabElementForScroll) {
         setTimeout(() => {
           activeTabElementForScroll.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
@@ -746,13 +1383,12 @@
       const existingRows = lapsSection.querySelectorAll('.lap-row:not(.lap-row-live)');
       existingRows.forEach(rowElement => rowElement.remove());
 
-      // Manage live lap row: shown whenever any time has accrued past the last committed split
+      // Manage live lap row: shown whenever at least one committed lap exists
+      // (will tick from 00:00.00 if just committed; stays visible when stopped to show frozen duration)
       const lastCommittedSplitMs = currentActivity && currentActivity.laps.length >= 1
         ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs
         : 0;
-      const shouldShowLiveLap = currentActivity
-        && currentActivity.laps.length >= 1
-        && getCurrentTotalElapsedMs() > lastCommittedSplitMs;
+      const shouldShowLiveLap = currentActivity && currentActivity.laps.length >= 1;
       if (shouldShowLiveLap) {
         liveLapRow.style.display = '';
         liveLapNumberLabel.textContent = `Lap ${currentActivity.laps.length + 1}`;
@@ -802,7 +1438,15 @@
             <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit lap ${lapNumber}">
               ${durationFormatted.mainPart}.${durationFormatted.centiPart}
             </div>
-            <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
+            <div class="lap-row-actions">
+              <button class="lap-row-merge-button" data-lap-id="${lapEntry.lapId}" ${lapIndex === 0 ? 'disabled' : ''} aria-label="Merge lap ${lapNumber} into previous lap">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 4v14"/>
+                  <path d="M5 11l7 7 7-7"/>
+                </svg>
+              </button>
+              <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
+            </div>
           </div>
           ${timestampDisplayText ? `<div class="lap-row-timestamp">${timestampDisplayText}</div>` : ''}
         `;
@@ -912,6 +1556,18 @@
       showEditModal();
     }
 
+    function handleMergeLapPress(lapId) {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const lapIndexToMerge = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
+      if (lapIndexToMerge <= 0) return; // first lap has no previous to merge with
+      // Remove the boundary at lapIndexToMerge - 1; the lap at lapIndexToMerge keeps its splitTimeMs
+      // and now spans from start-of-previous-lap → its own original split. Total time unchanged.
+      currentActivity.laps.splice(lapIndexToMerge - 1, 1);
+      persistStateToStorage();
+      renderAll();
+    }
+
     function handleDeleteLapPress(lapId) {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
@@ -952,6 +1608,26 @@
     function handleActivityTabPress(activityId) {
       if (activityId === appState.currentActivityId) return;
       appState.currentActivityId = activityId;
+      persistStateToStorage();
+      renderAll();
+    }
+
+    function handleMoveActivityLeftPress() {
+      const currentIndex = appState.activities.findIndex(a => a.activityId === appState.currentActivityId);
+      if (currentIndex <= 0) return;
+      const swapTemp = appState.activities[currentIndex - 1];
+      appState.activities[currentIndex - 1] = appState.activities[currentIndex];
+      appState.activities[currentIndex] = swapTemp;
+      persistStateToStorage();
+      renderAll();
+    }
+
+    function handleMoveActivityRightPress() {
+      const currentIndex = appState.activities.findIndex(a => a.activityId === appState.currentActivityId);
+      if (currentIndex < 0 || currentIndex >= appState.activities.length - 1) return;
+      const swapTemp = appState.activities[currentIndex + 1];
+      appState.activities[currentIndex + 1] = appState.activities[currentIndex];
+      appState.activities[currentIndex] = swapTemp;
       persistStateToStorage();
       renderAll();
     }
@@ -1121,6 +1797,8 @@
     lapResetButton.addEventListener('click', handleLapOrResetPress);
     renameActivityButton.addEventListener('click', openEditModalForActivityRename);
     deleteActivityButton.addEventListener('click', openEditModalForActivityDeleteConfirm);
+    moveActivityLeftButton.addEventListener('click', handleMoveActivityLeftPress);
+    moveActivityRightButton.addEventListener('click', handleMoveActivityRightPress);
 
     activityTabsScroller.addEventListener('click', (clickEvent) => {
       const tabTarget = clickEvent.target.closest('.activity-tab-button');
@@ -1138,6 +1816,13 @@
       if (durationTarget) {
         const lapId = parseInt(durationTarget.getAttribute('data-lap-id'), 10);
         openEditModalForLap(lapId);
+        return;
+      }
+      const mergeTarget = clickEvent.target.closest('.lap-row-merge-button');
+      if (mergeTarget) {
+        if (mergeTarget.hasAttribute('disabled')) return;
+        const lapId = parseInt(mergeTarget.getAttribute('data-lap-id'), 10);
+        handleMergeLapPress(lapId);
         return;
       }
       const deleteTarget = clickEvent.target.closest('.lap-row-delete-button');
@@ -1173,6 +1858,572 @@
     editModalInput.addEventListener('keydown', (keyEvent) => {
       if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); handleEditModalSave(); }
       if (keyEvent.key === 'Escape') hideEditModal();
+    });
+
+    // ============ Stats view ============
+    const statsState = {
+      currentView: 'timer',                   // 'timer' | 'stats'
+      rangeDays: 30,
+      calendarYear: null,
+      calendarMonth: null,                    // 0-11
+    };
+
+    function getActivityLapDailyTotalsMinutes(activity) {
+      // Returns { 'YYYY-MM-DD': minutes } summing each lap's duration on the calendar day
+      // of its recordedAtWallClockMs (local time). Laps with null timestamps are skipped.
+      const dailyMap = {};
+      if (!activity) return dailyMap;
+      const laps = activity.laps;
+      for (let lapIndex = 0; lapIndex < laps.length; lapIndex++) {
+        const lapEntry = laps[lapIndex];
+        if (lapEntry.recordedAtWallClockMs == null) continue;
+        const previousSplitMs = lapIndex === 0 ? 0 : laps[lapIndex - 1].splitTimeMs;
+        const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
+        const dateObject = new Date(lapEntry.recordedAtWallClockMs);
+        const dateKey = formatDateKey(dateObject);
+        dailyMap[dateKey] = (dailyMap[dateKey] || 0) + lapDurationMs / 60000;
+      }
+      return dailyMap;
+    }
+
+    function getEarliestTrackingDate(activity) {
+      // Returns Date of the earliest tracked moment (lap or session start), or null
+      if (!activity) return null;
+      let earliestMs = null;
+      if (typeof activity.sessionStartedAtWallClockMs === 'number') {
+        earliestMs = activity.sessionStartedAtWallClockMs;
+      }
+      for (const lapEntry of activity.laps) {
+        if (lapEntry.recordedAtWallClockMs == null) continue;
+        if (earliestMs == null || lapEntry.recordedAtWallClockMs < earliestMs) earliestMs = lapEntry.recordedAtWallClockMs;
+      }
+      return earliestMs == null ? null : new Date(earliestMs);
+    }
+
+    function formatDateKey(dateObject) {
+      const y = dateObject.getFullYear();
+      const m = (dateObject.getMonth() + 1).toString().padStart(2, '0');
+      const d = dateObject.getDate().toString().padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function dateAtMidnight(dateObject) {
+      return new Date(dateObject.getFullYear(), dateObject.getMonth(), dateObject.getDate());
+    }
+
+    function isSameLocalDate(a, b) {
+      return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    }
+
+    function getMinutesForDate(activity, dateObject) {
+      // Returns null if before tracking started for this activity; otherwise minutes (>=0)
+      const earliestTrackingDate = getEarliestTrackingDate(activity);
+      if (!earliestTrackingDate) return null;
+      const earliestMidnight = dateAtMidnight(earliestTrackingDate);
+      const candidateMidnight = dateAtMidnight(dateObject);
+      if (candidateMidnight < earliestMidnight) return null;
+      const dailyMap = getActivityLapDailyTotalsMinutes(activity);
+      return dailyMap[formatDateKey(dateObject)] || 0;
+    }
+
+    function formatHoursMinutes(totalMinutes) {
+      if (totalMinutes == null || totalMinutes <= 0) return '0m';
+      const wholeMinutes = Math.round(totalMinutes);
+      const hours = Math.floor(wholeMinutes / 60);
+      const minutes = wholeMinutes % 60;
+      if (hours === 0) return `${minutes}m`;
+      if (minutes === 0) return `${hours}h`;
+      return `${hours}h ${minutes}m`;
+    }
+
+    function formatHoursMinutesShort(totalMinutes) {
+      if (totalMinutes == null) return '—';
+      if (totalMinutes <= 0) return '—';
+      const wholeMinutes = Math.round(totalMinutes);
+      const hours = Math.floor(wholeMinutes / 60);
+      const minutes = wholeMinutes % 60;
+      if (hours === 0) return `${minutes}m`;
+      if (minutes === 0) return `${hours}h`;
+      return `${hours}h${minutes}m`;
+    }
+
+    function switchToView(viewName) {
+      statsState.currentView = viewName;
+      const timerContainer = document.getElementById('timerViewContainer');
+      const statsView = document.getElementById('statsView');
+      if (viewName === 'stats') {
+        timerContainer.classList.add('is-hidden');
+        statsView.classList.add('is-visible');
+        // Default the calendar to current month on first open
+        if (statsState.calendarYear == null) {
+          const now = new Date();
+          statsState.calendarYear = now.getFullYear();
+          statsState.calendarMonth = now.getMonth();
+        }
+        renderStatsAll();
+      } else {
+        timerContainer.classList.remove('is-hidden');
+        statsView.classList.remove('is-visible');
+      }
+    }
+
+    // ----- Stats rendering -----
+    function renderStatsTopBar() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      document.getElementById('statsActivityPillLabel').textContent = currentActivity.activityName;
+    }
+
+    function computeCurrentStreak(activity) {
+      const goalMinutes = activity.dailyGoalMinutes;
+      const today = new Date();
+      let streakCount = 0;
+      const todayMinutes = getMinutesForDate(activity, today) || 0;
+      if (todayMinutes >= goalMinutes) streakCount += 1;
+      const cursor = new Date(today);
+      cursor.setDate(cursor.getDate() - 1);
+      while (true) {
+        const m = getMinutesForDate(activity, cursor);
+        if (m == null) break;
+        if (m >= goalMinutes) streakCount += 1;
+        else break;
+        cursor.setDate(cursor.getDate() - 1);
+        if (streakCount > 365) break;
+      }
+      return streakCount;
+    }
+
+    function computeWeekTotals(activity) {
+      const today = new Date();
+      let thisWeek = 0, lastWeek = 0;
+      for (let i = 0; i < 7; i++) {
+        const d1 = new Date(today); d1.setDate(d1.getDate() - i);
+        thisWeek += getMinutesForDate(activity, d1) || 0;
+        const d2 = new Date(today); d2.setDate(d2.getDate() - 7 - i);
+        lastWeek += getMinutesForDate(activity, d2) || 0;
+      }
+      return { thisWeek, lastWeek };
+    }
+
+    function computeGoalHitPercent(activity, days) {
+      const goalMinutes = activity.dailyGoalMinutes;
+      const today = new Date();
+      let hits = 0, counted = 0;
+      for (let i = 0; i < days; i++) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const m = getMinutesForDate(activity, d);
+        if (m == null) continue;
+        counted += 1;
+        if (m >= goalMinutes) hits += 1;
+      }
+      if (counted === 0) return { pct: 0, total: 0 };
+      return { pct: Math.round((hits / counted) * 100), total: counted };
+    }
+
+    function renderStatsSummaryCards() {
+      const currentActivity = getCurrentActivity();
+      const container = document.getElementById('statsSummaryCards');
+      if (!currentActivity) { container.innerHTML = ''; return; }
+      const streakCount = computeCurrentStreak(currentActivity);
+      const weekTotals = computeWeekTotals(currentActivity);
+      const hitInfo = computeGoalHitPercent(currentActivity, 30);
+      let deltaText = '—', deltaClass = '';
+      if (weekTotals.lastWeek > 0) {
+        const pct = Math.round(((weekTotals.thisWeek - weekTotals.lastWeek) / weekTotals.lastWeek) * 100);
+        if (pct > 0) { deltaText = `↑ ${pct}%`; deltaClass = 'delta-up'; }
+        else if (pct < 0) { deltaText = `↓ ${Math.abs(pct)}%`; deltaClass = 'delta-down'; }
+        else { deltaText = '0%'; deltaClass = ''; }
+      } else if (weekTotals.thisWeek > 0) {
+        deltaText = 'new'; deltaClass = 'delta-up';
+      }
+      const thisWeekFormatted = formatHoursMinutes(weekTotals.thisWeek);
+      const weekParts = thisWeekFormatted.split(' ');
+      container.innerHTML = `
+        <div class="summary-card">
+          <div class="summary-card-label">Current streak</div>
+          <div>
+            <div class="summary-card-value"><span class="number">${streakCount}</span><span class="unit">${streakCount === 1 ? 'day' : 'days'}</span></div>
+            <div class="summary-card-sub">${streakCount === 0 ? 'Hit goal today to start' : 'Keep it going'}</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">This week</div>
+          <div>
+            <div class="summary-card-value"><span class="number">${weekParts[0]}</span>${weekParts[1] ? `<span class="unit">${weekParts[1]}</span>` : ''}</div>
+            <div class="summary-card-sub"><span class="${deltaClass}">${deltaText}</span> vs last</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">Goal hit</div>
+          <div>
+            <div class="summary-card-value"><span class="number">${hitInfo.pct}</span><span class="unit">%</span></div>
+            <div class="summary-card-sub">of ${hitInfo.total} days</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function computeRangeSeries(activity, days) {
+      const today = new Date();
+      const series = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const m = getMinutesForDate(activity, d);
+        series.push({ date: d, mins: m == null ? 0 : m, hasEntry: m != null });
+      }
+      return series;
+    }
+
+    function computeRolling7DayAverage(series) {
+      const out = [];
+      for (let i = 0; i < series.length; i++) {
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - 6); j <= i; j++) { sum += series[j].mins; count += 1; }
+        out.push(count ? sum / count : 0);
+      }
+      return out;
+    }
+
+    function renderStatsChart() {
+      const currentActivity = getCurrentActivity();
+      const svg = document.getElementById('statsChartSvg');
+      const xlabels = document.getElementById('statsChartXlabels');
+      const tooltip = document.getElementById('statsChartTooltip');
+      tooltip.classList.remove('is-visible');
+
+      if (!currentActivity) { svg.innerHTML = ''; xlabels.innerHTML = ''; return; }
+      const days = statsState.rangeDays;
+      const series = computeRangeSeries(currentActivity, days);
+      const goalMinutes = currentActivity.dailyGoalMinutes;
+      const avgSeries = computeRolling7DayAverage(series);
+
+      const VB_W = 320, VB_H = 168, PAD_T = 14, PAD_B = 8, PAD_L = 24, PAD_R = 8;
+      const seriesMax = Math.max(0, ...series.map(s => s.mins), ...avgSeries);
+      const yMaxRaw = Math.max(goalMinutes * 1.3, seriesMax);
+      const yMax = Math.max(15, Math.ceil(yMaxRaw / 15) * 15);
+      const innerW = VB_W - PAD_L - PAD_R;
+      const innerH = VB_H - PAD_T - PAD_B;
+      const baselineY = PAD_T + innerH;
+      const gapRatio = days <= 7 ? 0.32 : days <= 30 ? 0.22 : days <= 90 ? 0.14 : 0.06;
+      const slotW = innerW / days;
+      const barW = Math.max(1.2, slotW * (1 - gapRatio));
+      const barX = (i) => PAD_L + i * slotW + (slotW - barW) / 2;
+      const valY = (v) => PAD_T + innerH - (v / yMax) * innerH;
+
+      let svgInnerHtml = '';
+      svgInnerHtml += `<text class="chart-axis-text" x="${PAD_L - 6}" y="${baselineY + 3}" text-anchor="end">0</text>`;
+      svgInnerHtml += `<text class="chart-axis-text" x="${PAD_L - 6}" y="${PAD_T + 4}" text-anchor="end">${yMax}m</text>`;
+      const goalY = valY(goalMinutes);
+      svgInnerHtml += `<line class="chart-goal-line" x1="${PAD_L}" y1="${goalY}" x2="${VB_W - PAD_R}" y2="${goalY}"/>`;
+      svgInnerHtml += `<text class="chart-goal-label" x="${VB_W - PAD_R}" y="${goalY - 4}" text-anchor="end">Goal · ${goalMinutes}m</text>`;
+      series.forEach((point, i) => {
+        const x = barX(i);
+        const dataAttrs = `data-idx="${i}"`;
+        if (!point.hasEntry || point.mins === 0) {
+          const cx = x + barW / 2;
+          svgInnerHtml += `<circle class="chart-bar chart-bar-miss-dot" ${dataAttrs} cx="${cx}" cy="${baselineY - 1.2}" r="${Math.min(1.4, barW / 2)}"/>`;
+        } else {
+          const y = valY(point.mins);
+          const h = Math.max(1.2, baselineY - y);
+          const cls = point.mins >= goalMinutes ? 'chart-bar-hit' : 'chart-bar-low';
+          const r = Math.min(barW / 2, 1.5);
+          svgInnerHtml += `<rect class="chart-bar ${cls}" ${dataAttrs} x="${x}" y="${y}" width="${barW}" height="${h}" rx="${r}" ry="${r}"/>`;
+        }
+      });
+      const avgPath = avgSeries.map((v, i) => {
+        const x = barX(i) + barW / 2;
+        const y = valY(v);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+      }).join(' ');
+      svgInnerHtml += `<path class="chart-avg-line" d="${avgPath}"/>`;
+      svg.innerHTML = svgInnerHtml;
+
+      svg.onclick = (clickEvent) => {
+        const el = clickEvent.target.closest('[data-idx]');
+        if (!el) { hideStatsChartTooltip(); return; }
+        const idx = parseInt(el.getAttribute('data-idx'), 10);
+        showStatsChartTooltipForIndex(idx, series);
+      };
+
+      const tickCount = Math.min(5, days);
+      const xLabelHtml = [];
+      const monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      for (let t = 0; t < tickCount; t++) {
+        const idx = Math.round((days - 1) * (t / Math.max(1, tickCount - 1)));
+        const d = series[idx].date;
+        const label = days >= 365 ? monthsShort[d.getMonth()] : `${monthsShort[d.getMonth()]} ${d.getDate()}`;
+        xLabelHtml.push(`<span>${label}</span>`);
+      }
+      xlabels.innerHTML = xLabelHtml.join('');
+      const totalMinutes = series.reduce((s, p) => s + p.mins, 0);
+      document.getElementById('statsChartTotalLabel').innerHTML = `<strong>${formatHoursMinutes(totalMinutes)}</strong>`;
+    }
+
+    function showStatsChartTooltipForIndex(idx, series) {
+      const tooltip = document.getElementById('statsChartTooltip');
+      const tooltipDate = document.getElementById('statsChartTooltipDate');
+      const tooltipValue = document.getElementById('statsChartTooltipValue');
+      const wrap = document.getElementById('statsChartWrap');
+      const svg = document.getElementById('statsChartSvg');
+      const point = series[idx];
+      tooltipDate.textContent = point.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      tooltipValue.textContent = (!point.hasEntry || point.mins === 0) ? 'Missed' : formatHoursMinutes(point.mins);
+      const barEl = svg.querySelector(`[data-idx="${idx}"]`);
+      if (!barEl) return;
+      const barRect = barEl.getBoundingClientRect();
+      const wrapRect = wrap.getBoundingClientRect();
+      const cx = barRect.left - wrapRect.left + barRect.width / 2;
+      const cy = barRect.top - wrapRect.top;
+      const tooltipMaxWidth = 120;
+      const clampedX = Math.max(tooltipMaxWidth / 2 + 4, Math.min(wrapRect.width - tooltipMaxWidth / 2 - 4, cx));
+      tooltip.style.left = `${clampedX}px`;
+      tooltip.style.top = `${cy}px`;
+      tooltip.classList.add('is-visible');
+      svg.querySelectorAll('.chart-bar').forEach(b => {
+        b.classList.toggle('dim', b.getAttribute('data-idx') !== idx.toString());
+      });
+    }
+
+    function hideStatsChartTooltip() {
+      const tooltip = document.getElementById('statsChartTooltip');
+      tooltip.classList.remove('is-visible');
+      document.getElementById('statsChartSvg').querySelectorAll('.chart-bar').forEach(b => b.classList.remove('dim'));
+    }
+
+    function renderStatsCalendar() {
+      const currentActivity = getCurrentActivity();
+      const year = statsState.calendarYear;
+      const month = statsState.calendarMonth;
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('statsCalTitle').textContent = `${monthNames[month]} ${year}`;
+      const firstOfMonth = new Date(year, month, 1);
+      const firstWeekday = firstOfMonth.getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const goalMinutes = currentActivity ? currentActivity.dailyGoalMinutes : 60;
+      const today = new Date();
+      const grid = document.getElementById('statsCalGrid');
+      let html = '';
+      for (let i = 0; i < firstWeekday; i++) html += `<div class="cal-cell cal-cell-empty"></div>`;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, month, d);
+        const minutes = currentActivity ? getMinutesForDate(currentActivity, date) : null;
+        const isFuture = dateAtMidnight(date) > dateAtMidnight(today);
+        const isToday = isSameLocalDate(date, today);
+        const dateKey = formatDateKey(date);
+        let cellClass = 'cal-cell';
+        let durText = '';
+        if (isFuture) {
+          cellClass += ' cal-cell-future';
+        } else if (minutes == null) {
+          cellClass += ' cal-cell-empty';
+        } else if (minutes === 0) {
+          cellClass += ' cal-cell-miss';
+          durText = '—';
+        } else if (minutes >= goalMinutes) {
+          cellClass += ' cal-cell-hit';
+          durText = formatHoursMinutesShort(minutes);
+        } else {
+          cellClass += ' cal-cell-low';
+          durText = formatHoursMinutesShort(minutes);
+        }
+        if (isToday) cellClass += ' cal-cell-today';
+        const tag = (isFuture || minutes == null) ? 'div' : 'button';
+        html += `<${tag} class="${cellClass}" data-date="${dateKey}">
+          <span class="cal-cell-num">${d}</span>
+          <span class="cal-cell-dur">${durText}</span>
+        </${tag}>`;
+      }
+      grid.innerHTML = html;
+      const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+      document.getElementById('statsCalNextButton').disabled = isCurrentMonth;
+    }
+
+    function openStatsDayDetail(dateKey) {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const [yearStr, monthStr, dayStr] = dateKey.split('-');
+      const targetDate = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10) - 1, parseInt(dayStr, 10));
+      const minutes = getMinutesForDate(currentActivity, targetDate) || 0;
+      const goalMinutes = currentActivity.dailyGoalMinutes;
+      document.getElementById('statsDayDetailDate').textContent = targetDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const totalEl = document.getElementById('statsDayDetailTotal');
+      totalEl.textContent = minutes === 0 ? '0m' : formatHoursMinutes(minutes);
+      totalEl.className = 'day-detail-total ' + (minutes === 0 ? 'miss' : minutes >= goalMinutes ? 'hit' : 'low');
+      const pct = Math.min(100, Math.round((minutes / goalMinutes) * 100));
+      const fill = document.getElementById('statsDayDetailProgressFill');
+      fill.style.width = '0%';
+      fill.style.background = minutes === 0 ? 'var(--color-text-dim)' : minutes >= goalMinutes ? 'var(--color-accent-start-text)' : 'var(--color-warning)';
+      document.getElementById('statsDayDetailGoalText').textContent = `Goal · ${goalMinutes}m`;
+      document.getElementById('statsDayDetailPctText').textContent = `${pct}%`;
+      // Per-day session list: pull all laps recorded that day
+      const dayLapList = document.getElementById('statsDayLapList');
+      const lapsOnDay = currentActivity.laps
+        .map((lapEntry, lapIndex) => ({ lapEntry, lapIndex }))
+        .filter(({ lapEntry }) => {
+          if (lapEntry.recordedAtWallClockMs == null) return false;
+          return isSameLocalDate(new Date(lapEntry.recordedAtWallClockMs), targetDate);
+        });
+      if (lapsOnDay.length === 0) {
+        dayLapList.innerHTML = `<div class="day-empty">No sessions recorded for this day.</div>`;
+      } else {
+        dayLapList.innerHTML = lapsOnDay.map(({ lapEntry, lapIndex }, i) => {
+          const previousSplitMs = lapIndex === 0 ? 0 : currentActivity.laps[lapIndex - 1].splitTimeMs;
+          const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
+          const lapDurationMinutes = lapDurationMs / 60000;
+          const whenDate = new Date(lapEntry.recordedAtWallClockMs);
+          const whenText = whenDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+          return `<div class="day-lap-row">
+            <span class="day-lap-num">${(i + 1).toString().padStart(2, '0')}</span>
+            <span class="day-lap-when">${whenText}</span>
+            <span class="day-lap-dur">${formatHoursMinutes(lapDurationMinutes)}</span>
+          </div>`;
+        }).join('');
+      }
+      showStatsSheet('statsDaySheetBackdrop');
+      requestAnimationFrame(() => { requestAnimationFrame(() => { fill.style.width = `${pct}%`; }); });
+    }
+
+    function renderStatsActivityList() {
+      const list = document.getElementById('statsActivityList');
+      const today = new Date();
+      list.innerHTML = appState.activities.map(activityEntry => {
+        const goalMinutes = activityEntry.dailyGoalMinutes;
+        let hits = 0;
+        for (let i = 0; i < 30; i++) {
+          const d = new Date(today); d.setDate(d.getDate() - i);
+          const m = getMinutesForDate(activityEntry, d);
+          if (m != null && m >= goalMinutes) hits += 1;
+        }
+        const isSelected = activityEntry.activityId === appState.currentActivityId;
+        return `<button class="activity-list-row ${isSelected ? 'is-selected' : ''}" data-id="${activityEntry.activityId}">
+          <span class="activity-list-row-dot"></span>
+          <span class="activity-list-row-name">${activityEntry.activityName}</span>
+          <span class="activity-list-row-meta">${hits}/30</span>
+          <svg class="activity-list-row-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>`;
+      }).join('');
+    }
+
+    function showStatsSheet(sheetId) { document.getElementById(sheetId).classList.add('is-visible'); }
+    function hideStatsSheet(sheetId) { document.getElementById(sheetId).classList.remove('is-visible'); }
+    function hideAllStatsSheets() { document.querySelectorAll('.sheet-backdrop').forEach(b => b.classList.remove('is-visible')); }
+
+    function renderStatsAll() {
+      const currentActivity = getCurrentActivity();
+      const statsPage = document.getElementById('statsPage');
+      const emptyState = document.getElementById('statsEmptyState');
+      renderStatsTopBar();
+      const hasAnyTrackedData = currentActivity && getEarliestTrackingDate(currentActivity) !== null;
+      if (!hasAnyTrackedData) {
+        statsPage.style.display = 'none';
+        emptyState.style.display = 'flex';
+        return;
+      }
+      statsPage.style.display = '';
+      emptyState.style.display = 'none';
+      renderStatsSummaryCards();
+      document.querySelectorAll('#statsRangeSegmented .range-segment').forEach(seg => {
+        seg.classList.toggle('is-active', parseInt(seg.getAttribute('data-range'), 10) === statsState.rangeDays);
+      });
+      renderStatsChart();
+      renderStatsCalendar();
+      document.getElementById('statsFooterGoal').textContent = `${currentActivity.dailyGoalMinutes} min/day`;
+    }
+
+    // ----- Stats event wiring -----
+    document.getElementById('openStatsButton').addEventListener('click', () => switchToView('stats'));
+    document.getElementById('statsBackButton').addEventListener('click', () => switchToView('timer'));
+
+    document.getElementById('statsActivityPillButton').addEventListener('click', () => {
+      renderStatsActivityList();
+      showStatsSheet('statsActivitySheetBackdrop');
+    });
+    document.getElementById('statsActivityList').addEventListener('click', (clickEvent) => {
+      const row = clickEvent.target.closest('.activity-list-row');
+      if (!row) return;
+      const id = parseInt(row.getAttribute('data-id'), 10);
+      if (id !== appState.currentActivityId) {
+        appState.currentActivityId = id;
+        persistStateToStorage();
+      }
+      hideStatsSheet('statsActivitySheetBackdrop');
+      renderStatsAll();
+    });
+
+    document.getElementById('statsRangeSegmented').addEventListener('click', (clickEvent) => {
+      const seg = clickEvent.target.closest('.range-segment');
+      if (!seg) return;
+      const r = parseInt(seg.getAttribute('data-range'), 10);
+      if (r === statsState.rangeDays) return;
+      statsState.rangeDays = r;
+      renderStatsAll();
+    });
+
+    document.getElementById('statsCalPrevButton').addEventListener('click', () => {
+      let y = statsState.calendarYear, m = statsState.calendarMonth - 1;
+      if (m < 0) { m = 11; y -= 1; }
+      statsState.calendarYear = y; statsState.calendarMonth = m;
+      renderStatsCalendar();
+    });
+    document.getElementById('statsCalNextButton').addEventListener('click', () => {
+      const today = new Date();
+      if (statsState.calendarYear === today.getFullYear() && statsState.calendarMonth === today.getMonth()) return;
+      let y = statsState.calendarYear, m = statsState.calendarMonth + 1;
+      if (m > 11) { m = 0; y += 1; }
+      statsState.calendarYear = y; statsState.calendarMonth = m;
+      renderStatsCalendar();
+    });
+    document.getElementById('statsCalGrid').addEventListener('click', (clickEvent) => {
+      const cell = clickEvent.target.closest('button.cal-cell');
+      if (!cell) return;
+      const dateKey = cell.getAttribute('data-date');
+      if (dateKey) openStatsDayDetail(dateKey);
+    });
+
+    document.getElementById('statsFooterEditButton').addEventListener('click', () => {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const input = document.getElementById('statsGoalInput');
+      input.value = currentActivity.dailyGoalMinutes;
+      syncStatsGoalChips(currentActivity.dailyGoalMinutes);
+      showStatsSheet('statsGoalSheetBackdrop');
+    });
+    function syncStatsGoalChips(value) {
+      document.querySelectorAll('#statsGoalChips .goal-chip').forEach(chip => {
+        chip.classList.toggle('is-selected', parseInt(chip.getAttribute('data-mins'), 10) === value);
+      });
+    }
+    document.getElementById('statsGoalChips').addEventListener('click', (clickEvent) => {
+      const chip = clickEvent.target.closest('.goal-chip');
+      if (!chip) return;
+      const m = parseInt(chip.getAttribute('data-mins'), 10);
+      document.getElementById('statsGoalInput').value = m;
+      syncStatsGoalChips(m);
+    });
+    document.getElementById('statsGoalInput').addEventListener('input', () => {
+      const v = parseInt(document.getElementById('statsGoalInput').value, 10);
+      syncStatsGoalChips(v);
+    });
+    document.getElementById('statsGoalCancelButton').addEventListener('click', () => hideStatsSheet('statsGoalSheetBackdrop'));
+    document.getElementById('statsGoalSaveButton').addEventListener('click', () => {
+      const v = parseInt(document.getElementById('statsGoalInput').value, 10);
+      const currentActivity = getCurrentActivity();
+      if (!isNaN(v) && v > 0 && v <= 600 && currentActivity) {
+        currentActivity.dailyGoalMinutes = v;
+        persistStateToStorage();
+        renderStatsAll();
+      }
+      hideStatsSheet('statsGoalSheetBackdrop');
+    });
+
+    // Tap outside chart to dismiss tooltip
+    document.addEventListener('click', (clickEvent) => {
+      if (!clickEvent.target.closest('#statsChartWrap')) hideStatsChartTooltip();
+    });
+    document.querySelectorAll('.sheet-backdrop').forEach(backdrop => {
+      backdrop.addEventListener('click', (clickEvent) => {
+        if (clickEvent.target === backdrop) backdrop.classList.remove('is-visible');
+      });
     });
 
     // ============ Animation loop ============
