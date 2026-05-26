@@ -5,15 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <title>Chronograph</title>
 
-  <!-- iOS PWA meta tags: these make Add-to-Home-Screen behave like a real app -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Chronograph" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#0c0c0f" />
+  <meta name="theme-color" content="#000000" />
 
-  <!-- Favicon: stopwatch glyph as inline SVG data URL -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='36' r='22' fill='none' stroke='%23f0eee8' stroke-width='4'/><line x1='32' y1='36' x2='32' y2='20' stroke='%2310b981' stroke-width='4' stroke-linecap='round'/><rect x='26' y='4' width='12' height='6' fill='%23f0eee8'/></svg>" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='36' r='22' fill='none' stroke='%23f0eee8' stroke-width='4'/><line x1='32' y1='36' x2='32' y2='20' stroke='%2330d158' stroke-width='4' stroke-linecap='round'/><rect x='26' y='4' width='12' height='6' fill='%23f0eee8'/></svg>" />
 
   <style>
     :root {
@@ -29,51 +27,133 @@
       --color-accent-stop-bg: rgba(255, 69, 58, 0.18);
       --color-accent-stop-text: #ff453a;
       --color-accent-edit: #ff9f0a;
+      --color-accent-active-tab: #0a84ff;
+      --content-gutter: 24px;
       --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
       --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-      -webkit-touch-callout: none;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 
     html, body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: var(--color-background);
       color: var(--color-text-primary);
       font-family: var(--font-ui);
       overscroll-behavior: contain;
-      user-select: none;
-      -webkit-user-select: none;
+      user-select: none; -webkit-user-select: none;
     }
 
     body {
-      min-height: 100vh;
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; flex-direction: column;
       padding-top: var(--safe-top);
       padding-bottom: var(--safe-bottom);
       background: var(--color-background);
     }
 
-    .timer-display-section {
-      flex: 0 0 auto;
+    /* === Activity tabs === */
+    .activity-tabs-section {
+      flex-shrink: 0;
+      padding: 12px 0 8px;
+      border-bottom: 0.5px solid var(--color-border);
+    }
+
+    .activity-tabs-scroller {
+      display: flex; gap: 8px;
+      padding: 0 var(--content-gutter);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .activity-tabs-scroller::-webkit-scrollbar { display: none; }
+
+    .activity-tab-button {
+      flex-shrink: 0;
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-family: var(--font-ui);
+      font-size: 14px; font-weight: 500;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 150ms ease, color 150ms ease;
+      max-width: 180px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .activity-tab-button.is-active-tab {
+      background: var(--color-accent-active-tab);
+      color: #ffffff;
+    }
+
+    .activity-tab-button.is-running-indicator::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--color-accent-start-text);
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .activity-tab-button.is-active-tab.is-running-indicator::before {
+      background: #ffffff;
+    }
+
+    .activity-tab-add-button {
+      flex-shrink: 0;
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      border: 1px dashed var(--color-border);
+      border-radius: 999px;
+      width: 38px; height: 38px;
+      font-size: 20px; line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
+      font-family: var(--font-ui);
+    }
+
+    .activity-controls-row {
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 80px 24px 40px;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px var(--content-gutter);
+      flex-shrink: 0;
+    }
+
+    .activity-control-icon-button {
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      border: none;
+      border-radius: 8px;
+      width: 36px; height: 36px;
+      cursor: pointer;
+      touch-action: manipulation;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: opacity 150ms ease, color 150ms ease;
+    }
+    .activity-control-icon-button:active { opacity: 0.6; }
+    .activity-control-icon-button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .activity-control-icon-button.is-danger:active { color: var(--color-accent-stop-text); }
+
+    /* === Timer display === */
+    .timer-display-section {
+      flex: 0 0 auto;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px 24px 20px;
     }
 
     .timer-display-value {
       font-family: var(--font-display);
       font-weight: 200;
-      font-size: clamp(68px, 18vw, 96px);
+      font-size: clamp(60px, 16vw, 88px);
       letter-spacing: -0.03em;
       color: var(--color-text-primary);
       text-align: center;
@@ -86,68 +166,64 @@
       color: var(--color-text-primary);
     }
 
+    .session-started-label {
+      margin-top: 14px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.01em;
+      text-align: center;
+      min-height: 17px;
+    }
+
+    /* === Controls === */
     .controls-section {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 24px;
-      padding: 16px 32px 24px;
+      padding-top: 8px;
+      padding-right: var(--content-gutter);
+      padding-bottom: 16px;
+      padding-left: var(--content-gutter);
       flex-shrink: 0;
     }
 
     .control-button {
-      width: 84px;
-      height: 84px;
-      border-radius: 50%;
-      border: none;
+      width: 84px; height: 84px;
+      border-radius: 50%; border: none;
+      margin: 0;
       background: var(--color-surface);
       color: var(--color-text-primary);
       font-family: var(--font-ui);
-      font-size: 17px;
-      font-weight: 400;
-      letter-spacing: 0;
-      text-transform: none;
+      font-size: 17px; font-weight: 400;
       cursor: pointer;
       touch-action: manipulation;
-      position: relative;
       transition: transform 100ms ease, opacity 150ms ease;
     }
-
-    .control-button:active {
-      transform: scale(0.94);
-      opacity: 0.7;
-    }
+    .control-button:active { transform: scale(0.94); opacity: 0.7; }
 
     .control-button.primary-action {
       background: var(--color-accent-start-bg);
       color: var(--color-accent-start-text);
     }
-
     .control-button.primary-action.is-stop-state {
       background: var(--color-accent-stop-bg);
       color: var(--color-accent-stop-text);
     }
+    .control-button.secondary-action { color: var(--color-text-primary); }
+    .control-button.secondary-action:disabled { color: var(--color-text-dim); opacity: 1; cursor: not-allowed; }
 
-    .control-button.secondary-action {
-      color: var(--color-text-primary);
-    }
-
-    .control-button.secondary-action:disabled {
-      color: var(--color-text-dim);
-      opacity: 1;
-    }
-
-    .control-button:disabled {
-      cursor: not-allowed;
-    }
-
+    /* === Laps === */
     .laps-section {
       flex: 1;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      padding: 8px 24px 24px;
+      scrollbar-width: none;
+      padding-top: 8px;
+      padding-right: var(--content-gutter);
+      padding-bottom: 24px;
+      padding-left: var(--content-gutter);
     }
-
     .laps-section::-webkit-scrollbar { display: none; }
 
     .laps-empty-state {
@@ -159,44 +235,40 @@
     }
 
     .lap-row {
+      padding: 12px 0;
+      border-bottom: 0.5px solid var(--color-border);
+      transition: background 150ms ease;
+    }
+    .lap-row:active { background: var(--color-surface); }
+    .lap-row.is-best-lap .lap-row-duration { color: var(--color-accent-start-text); }
+    .lap-row.is-worst-lap .lap-row-duration { color: var(--color-accent-stop-text); }
+
+    .lap-row-main {
       display: grid;
       grid-template-columns: 1fr auto auto;
       align-items: center;
-      gap: 16px;
-      padding: 16px 4px;
-      border-bottom: 0.5px solid var(--color-border);
+      gap: 12px;
       font-family: var(--font-display);
-      font-size: 17px;
-      font-weight: 300;
+      font-size: 17px; font-weight: 400;
       color: var(--color-text-primary);
-      transition: background 150ms ease;
     }
 
-    .lap-row:active {
-      background: var(--color-surface);
-    }
-
-    .lap-row.is-best-lap { color: var(--color-accent-start-text); }
-    .lap-row.is-worst-lap { color: var(--color-accent-stop-text); }
-
-    .lap-row-number {
-      font-weight: 300;
-    }
+    .lap-row-number { font-weight: 400; }
 
     .lap-row-duration {
       font-variant-numeric: tabular-nums;
       cursor: pointer;
-      padding: 6px 10px;
-      border-radius: 8px;
-      margin: -6px 0;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin: -4px 0;
       letter-spacing: -0.01em;
     }
-
     .lap-row-duration:active { background: rgba(255, 159, 10, 0.15); }
 
+    .lap-row-duration-live:active { background: rgba(255, 159, 10, 0.15); }
+
     .lap-row-delete-button {
-      background: none;
-      border: none;
+      background: none; border: none;
       color: var(--color-text-dim);
       font-size: 22px;
       cursor: pointer;
@@ -205,32 +277,31 @@
       line-height: 1;
       font-weight: 300;
     }
-
     .lap-row-delete-button:active { color: var(--color-accent-stop-text); }
 
-    /* Edit modal */
-    .edit-modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 100;
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-      padding-bottom: var(--safe-bottom);
+    .lap-row-timestamp {
+      margin-top: 4px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.01em;
     }
 
+    /* === Modal (reused for lap-duration edit, activity rename, delete confirm) === */
+    .edit-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: flex-end; justify-content: center;
+      padding-bottom: var(--safe-bottom);
+    }
     .edit-modal-backdrop.is-visible {
       display: flex;
       animation: fade-in 200ms ease;
     }
-
-    @keyframes fade-in {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
     .edit-modal-sheet {
       background: var(--color-surface);
@@ -241,21 +312,24 @@
       max-width: 500px;
       animation: slide-up 280ms cubic-bezier(0.32, 0.72, 0, 1);
     }
-
-    @keyframes slide-up {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
+    @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
     .edit-modal-title {
       font-family: var(--font-ui);
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      font-weight: 600; font-size: 13px;
+      letter-spacing: 0.14em; text-transform: uppercase;
       color: var(--color-text-muted);
       margin: 0 0 16px;
       text-align: center;
+    }
+
+    .edit-modal-message {
+      font-family: var(--font-ui);
+      font-size: 14px;
+      color: var(--color-text-primary);
+      text-align: center;
+      margin: 0 0 16px;
+      line-height: 1.5;
     }
 
     .edit-modal-input {
@@ -265,33 +339,25 @@
       border-radius: 12px;
       padding: 18px 20px;
       font-family: var(--font-display);
-      font-size: 28px;
-      font-weight: 400;
+      font-size: 24px; font-weight: 400;
       color: var(--color-text-primary);
       text-align: center;
-      letter-spacing: -0.01em;
       outline: none;
       font-variant-numeric: tabular-nums;
       transition: border-color 150ms ease;
     }
-
-    .edit-modal-input:focus {
-      border-color: var(--color-accent-edit);
-    }
+    .edit-modal-input:focus { border-color: var(--color-accent-edit); }
+    .edit-modal-input.is-text-input { font-size: 18px; font-variant-numeric: normal; text-align: left; }
 
     .edit-modal-format-hint {
       text-align: center;
       margin-top: 12px;
       font-family: var(--font-display);
       font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      letter-spacing: 0.12em; text-transform: uppercase;
       color: var(--color-text-dim);
     }
-
-    .edit-modal-format-hint.is-error {
-      color: var(--color-accent-stop);
-    }
+    .edit-modal-format-hint.is-error { color: var(--color-accent-stop-text); }
 
     .edit-modal-actions {
       display: grid;
@@ -302,36 +368,48 @@
 
     .edit-modal-button {
       padding: 16px;
-      border-radius: 12px;
-      border: none;
+      border-radius: 12px; border: none;
       font-family: var(--font-ui);
-      font-weight: 600;
-      font-size: 14px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      font-weight: 600; font-size: 14px;
+      letter-spacing: 0.06em; text-transform: uppercase;
       cursor: pointer;
       touch-action: manipulation;
       transition: transform 100ms ease;
     }
-
     .edit-modal-button:active { transform: scale(0.97); }
-
-    .edit-modal-button.cancel-action {
-      background: var(--color-surface-raised);
-      color: var(--color-text-muted);
-    }
-
-    .edit-modal-button.save-action {
-      background: var(--color-accent-edit);
-      color: #1f1408;
-    }
+    .edit-modal-button.cancel-action { background: var(--color-surface-raised); color: var(--color-text-muted); }
+    .edit-modal-button.save-action { background: var(--color-accent-edit); color: #1f1408; }
+    .edit-modal-button.danger-action { background: var(--color-accent-stop-text); color: #1f0808; }
   </style>
 </head>
 <body>
+
+  <section class="activity-tabs-section">
+    <div class="activity-tabs-scroller" id="activityTabsScroller"></div>
+  </section>
+
+  <section class="activity-controls-row">
+    <button class="activity-control-icon-button" id="renameActivityButton" aria-label="Rename activity">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+    </button>
+    <button class="activity-control-icon-button is-danger" id="deleteActivityButton" aria-label="Delete activity">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        <path d="M10 11v6"/>
+        <path d="M14 11v6"/>
+      </svg>
+    </button>
+  </section>
+
   <section class="timer-display-section">
     <div class="timer-display-value" id="timerDisplayValue">
       00:00<span class="digits-centiseconds">.00</span>
     </div>
+    <div class="session-started-label" id="sessionStartedLabel"></div>
   </section>
 
   <section class="controls-section">
@@ -340,16 +418,24 @@
   </section>
 
   <section class="laps-section" id="lapsSection">
+    <div class="lap-row lap-row-live" id="liveLapRow" style="display:none">
+      <div class="lap-row-main">
+        <div class="lap-row-number" id="liveLapNumberLabel">Lap</div>
+        <div class="lap-row-duration lap-row-duration-live" id="liveLapDuration" role="button" aria-label="Edit current lap duration">00:00.00</div>
+        <button class="lap-row-delete-button" id="liveLapDeleteButton" aria-label="Discard current lap">×</button>
+      </div>
+      <div class="lap-row-timestamp" id="liveLapTimestamp"></div>
+    </div>
     <div class="laps-empty-state" id="lapsEmptyState">No laps recorded</div>
   </section>
 
-  <!-- Edit modal -->
   <div class="edit-modal-backdrop" id="editModalBackdrop">
     <div class="edit-modal-sheet">
-      <h3 class="edit-modal-title" id="editModalTitle">Edit Time</h3>
+      <h3 class="edit-modal-title" id="editModalTitle">Edit</h3>
+      <p class="edit-modal-message" id="editModalMessage" style="display:none"></p>
       <input class="edit-modal-input" id="editModalInput" type="text" inputmode="decimal"
              autocomplete="off" autocorrect="off" spellcheck="false" />
-      <div class="edit-modal-format-hint" id="editModalFormatHint">Format: MM:SS.cc or HH:MM:SS.cc</div>
+      <div class="edit-modal-format-hint" id="editModalFormatHint"></div>
       <div class="edit-modal-actions">
         <button class="edit-modal-button cancel-action" id="editModalCancelButton">Cancel</button>
         <button class="edit-modal-button save-action" id="editModalSaveButton">Save</button>
@@ -358,83 +444,160 @@
   </div>
 
   <script>
-    // ===== State =====
-    const stopwatchState = {
-      isRunning: false,
-      segmentStartTimestamp: null,        // wall-clock ms when current running segment started
-      accumulatedBeforeSegmentMs: 0,      // total ms accumulated before current running segment
-      laps: [],                            // [{ lapId, splitTimeMs }]
-      nextLapId: 1,
+    // ============ State ============
+    const appState = {
+      activities: [],
+      currentActivityId: null,
+      nextActivityId: 1,
     };
 
-    // ===== Persistence =====
-    const STORAGE_KEY_STATE = 'chronograph:state:v1';
+    function createActivityShell(activityId, activityName) {
+      return {
+        activityId: activityId,
+        activityName: activityName,
+        isRunning: false,
+        segmentStartTimestamp: null,            // wall-clock ms; anchor for currently running segment
+        accumulatedBeforeSegmentMs: 0,          // total ms accumulated before current running segment
+        laps: [],                                // [{ lapId, splitTimeMs, recordedAtWallClockMs }]
+        nextLapId: 1,
+        sessionStartedAtWallClockMs: null,      // when this session began (first Start after Reset)
+      };
+    }
+
+    function getCurrentActivity() {
+      return appState.activities.find(activityEntry => activityEntry.activityId === appState.currentActivityId);
+    }
+
+    // ============ Persistence ============
+    const STORAGE_KEY_STATE_V2 = 'chronograph:state:v2';
+    const STORAGE_KEY_STATE_V1 = 'chronograph:state:v1';
 
     function persistStateToStorage() {
       try {
         if (typeof localStorage === 'undefined') return;
-        const serializedState = JSON.stringify(stopwatchState);
-        localStorage.setItem(STORAGE_KEY_STATE, serializedState);
-      } catch (storageError) {
-        // Quota exceeded, security error, or storage unavailable — fail silently
-      }
+        localStorage.setItem(STORAGE_KEY_STATE_V2, JSON.stringify(appState));
+      } catch (storageError) { /* fail silently */ }
+    }
+
+    function sanitizeActivity(rawActivity) {
+      const sanitized = createActivityShell(
+        typeof rawActivity.activityId === 'number' ? rawActivity.activityId : 1,
+        typeof rawActivity.activityName === 'string' && rawActivity.activityName.trim() ? rawActivity.activityName : 'Activity'
+      );
+      sanitized.isRunning = Boolean(rawActivity.isRunning);
+      sanitized.segmentStartTimestamp = typeof rawActivity.segmentStartTimestamp === 'number' ? rawActivity.segmentStartTimestamp : null;
+      sanitized.accumulatedBeforeSegmentMs = typeof rawActivity.accumulatedBeforeSegmentMs === 'number' ? rawActivity.accumulatedBeforeSegmentMs : 0;
+      sanitized.laps = Array.isArray(rawActivity.laps) ? rawActivity.laps
+        .filter(lapEntry => lapEntry && typeof lapEntry.lapId === 'number' && typeof lapEntry.splitTimeMs === 'number')
+        .map(lapEntry => ({
+          lapId: lapEntry.lapId,
+          splitTimeMs: lapEntry.splitTimeMs,
+          recordedAtWallClockMs: typeof lapEntry.recordedAtWallClockMs === 'number' ? lapEntry.recordedAtWallClockMs : null,
+        }))
+        : [];
+      sanitized.nextLapId = typeof rawActivity.nextLapId === 'number' ? rawActivity.nextLapId : 1;
+      sanitized.sessionStartedAtWallClockMs = typeof rawActivity.sessionStartedAtWallClockMs === 'number' ? rawActivity.sessionStartedAtWallClockMs : null;
+      if (sanitized.isRunning && sanitized.segmentStartTimestamp === null) sanitized.isRunning = false;
+      return sanitized;
+    }
+
+    function initializeWithDefaultActivity() {
+      appState.activities = [createActivityShell(1, 'Activity 01')];
+      appState.currentActivityId = 1;
+      appState.nextActivityId = 2;
     }
 
     function loadPersistedStateFromStorage() {
       try {
-        if (typeof localStorage === 'undefined') return;
-        const rawSavedJson = localStorage.getItem(STORAGE_KEY_STATE);
-        if (!rawSavedJson) return;
-        const parsedState = JSON.parse(rawSavedJson);
-        if (typeof parsedState !== 'object' || parsedState === null) return;
+        if (typeof localStorage === 'undefined') { initializeWithDefaultActivity(); return; }
 
-        stopwatchState.isRunning = Boolean(parsedState.isRunning);
-        stopwatchState.segmentStartTimestamp = (typeof parsedState.segmentStartTimestamp === 'number')
-          ? parsedState.segmentStartTimestamp : null;
-        stopwatchState.accumulatedBeforeSegmentMs = (typeof parsedState.accumulatedBeforeSegmentMs === 'number')
-          ? parsedState.accumulatedBeforeSegmentMs : 0;
-        stopwatchState.laps = Array.isArray(parsedState.laps)
-          ? parsedState.laps.filter(lapEntry => lapEntry && typeof lapEntry.lapId === 'number' && typeof lapEntry.splitTimeMs === 'number')
-          : [];
-        stopwatchState.nextLapId = (typeof parsedState.nextLapId === 'number') ? parsedState.nextLapId : 1;
-
-        // Safety: marked running but no anchor timestamp -> treat as paused
-        if (stopwatchState.isRunning && stopwatchState.segmentStartTimestamp === null) {
-          stopwatchState.isRunning = false;
+        // Prefer v2
+        const rawV2Json = localStorage.getItem(STORAGE_KEY_STATE_V2);
+        if (rawV2Json) {
+          const parsedV2 = JSON.parse(rawV2Json);
+          if (parsedV2 && Array.isArray(parsedV2.activities) && parsedV2.activities.length > 0) {
+            appState.activities = parsedV2.activities.map(sanitizeActivity);
+            const maxExistingActivityId = Math.max(...appState.activities.map(a => a.activityId));
+            appState.nextActivityId = (typeof parsedV2.nextActivityId === 'number' && parsedV2.nextActivityId > maxExistingActivityId)
+              ? parsedV2.nextActivityId
+              : maxExistingActivityId + 1;
+            const currentExists = appState.activities.some(a => a.activityId === parsedV2.currentActivityId);
+            appState.currentActivityId = currentExists ? parsedV2.currentActivityId : appState.activities[0].activityId;
+            return;
+          }
         }
+
+        // Migrate v1 (single-stopwatch) -> single activity "Activity 01"
+        const rawV1Json = localStorage.getItem(STORAGE_KEY_STATE_V1);
+        if (rawV1Json) {
+          const parsedV1 = JSON.parse(rawV1Json);
+          if (parsedV1 && typeof parsedV1 === 'object') {
+            const migratedActivity = createActivityShell(1, 'Activity 01');
+            migratedActivity.isRunning = Boolean(parsedV1.isRunning);
+            migratedActivity.segmentStartTimestamp = typeof parsedV1.segmentStartTimestamp === 'number' ? parsedV1.segmentStartTimestamp : null;
+            migratedActivity.accumulatedBeforeSegmentMs = typeof parsedV1.accumulatedBeforeSegmentMs === 'number' ? parsedV1.accumulatedBeforeSegmentMs : 0;
+            migratedActivity.laps = Array.isArray(parsedV1.laps) ? parsedV1.laps
+              .filter(lapEntry => lapEntry && typeof lapEntry.lapId === 'number' && typeof lapEntry.splitTimeMs === 'number')
+              .map(lapEntry => ({ lapId: lapEntry.lapId, splitTimeMs: lapEntry.splitTimeMs, recordedAtWallClockMs: null }))
+              : [];
+            migratedActivity.nextLapId = typeof parsedV1.nextLapId === 'number' ? parsedV1.nextLapId : 1;
+            if (migratedActivity.isRunning && migratedActivity.segmentStartTimestamp === null) migratedActivity.isRunning = false;
+            appState.activities = [migratedActivity];
+            appState.currentActivityId = 1;
+            appState.nextActivityId = 2;
+            persistStateToStorage();
+            return;
+          }
+        }
+
+        initializeWithDefaultActivity();
       } catch (storageError) {
-        // Corrupt or missing — fall through with defaults
+        initializeWithDefaultActivity();
       }
     }
 
-    // ===== DOM refs =====
+    // ============ DOM refs ============
+    const activityTabsScroller = document.getElementById('activityTabsScroller');
+    const renameActivityButton = document.getElementById('renameActivityButton');
+    const deleteActivityButton = document.getElementById('deleteActivityButton');
     const timerDisplayValue = document.getElementById('timerDisplayValue');
+    const sessionStartedLabel = document.getElementById('sessionStartedLabel');
     const startStopButton = document.getElementById('startStopButton');
     const lapResetButton = document.getElementById('lapResetButton');
     const lapsSection = document.getElementById('lapsSection');
     const lapsEmptyState = document.getElementById('lapsEmptyState');
+    const liveLapRow = document.getElementById('liveLapRow');
+    const liveLapNumberLabel = document.getElementById('liveLapNumberLabel');
+    const liveLapDuration = document.getElementById('liveLapDuration');
+    const liveLapTimestamp = document.getElementById('liveLapTimestamp');
+    const liveLapDeleteButton = document.getElementById('liveLapDeleteButton');
     const editModalBackdrop = document.getElementById('editModalBackdrop');
     const editModalTitle = document.getElementById('editModalTitle');
+    const editModalMessage = document.getElementById('editModalMessage');
     const editModalInput = document.getElementById('editModalInput');
     const editModalFormatHint = document.getElementById('editModalFormatHint');
     const editModalCancelButton = document.getElementById('editModalCancelButton');
     const editModalSaveButton = document.getElementById('editModalSaveButton');
 
-    // ===== Time math =====
+    // ============ Time math ============
     function getCurrentTotalElapsedMs() {
-      if (stopwatchState.isRunning) {
-        return stopwatchState.accumulatedBeforeSegmentMs + (Date.now() - stopwatchState.segmentStartTimestamp);
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return 0;
+      if (currentActivity.isRunning) {
+        return currentActivity.accumulatedBeforeSegmentMs + (Date.now() - currentActivity.segmentStartTimestamp);
       }
-      return stopwatchState.accumulatedBeforeSegmentMs;
+      return currentActivity.accumulatedBeforeSegmentMs;
     }
 
     function getLapDurationMs(lapIndex) {
-      const previousSplit = lapIndex === 0 ? 0 : stopwatchState.laps[lapIndex - 1].splitTimeMs;
-      return stopwatchState.laps[lapIndex].splitTimeMs - previousSplit;
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return 0;
+      const previousSplit = lapIndex === 0 ? 0 : currentActivity.laps[lapIndex - 1].splitTimeMs;
+      return currentActivity.laps[lapIndex].splitTimeMs - previousSplit;
     }
 
-    // ===== Formatting =====
-    function formatElapsedTimeForDisplay(totalMs, includeCentiseconds = true) {
+    // ============ Formatting ============
+    function formatElapsedTimeForDisplay(totalMs, includeCentiseconds) {
       if (totalMs < 0) totalMs = 0;
       const totalCentiseconds = Math.floor(totalMs / 10);
       const centiseconds = totalCentiseconds % 100;
@@ -443,64 +606,127 @@
       const totalMinutes = Math.floor(totalSeconds / 60);
       const minutes = totalMinutes % 60;
       const hours = Math.floor(totalMinutes / 60);
-
-      const pad2 = (numericValue) => numericValue.toString().padStart(2, '0');
-
-      let mainPart;
-      if (hours > 0) {
-        mainPart = `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
-      } else {
-        mainPart = `${pad2(minutes)}:${pad2(seconds)}`;
-      }
-
+      const pad2 = (n) => n.toString().padStart(2, '0');
+      const mainPart = hours > 0 ? `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}` : `${pad2(minutes)}:${pad2(seconds)}`;
       if (!includeCentiseconds) return mainPart;
       return { mainPart, centiPart: pad2(centiseconds) };
+    }
+
+    function autoFormatLapDurationInput(rawInputValue) {
+      // Strip non-digits; cap at 8 (HH:MM:SS.cc max), but if <=6 don't surface hours
+      const allDigits = rawInputValue.replace(/\D/g, '');
+      const digitsOnly = allDigits.slice(-8);
+      if (digitsOnly.length === 0) return '';
+      const paddedDigits = digitsOnly.padStart(6, '0');
+      const centisecondsPart = paddedDigits.slice(-2);
+      const secondsPart = paddedDigits.slice(-4, -2);
+      const minutesPart = paddedDigits.slice(-6, -4);
+      if (paddedDigits.length <= 6) {
+        return `${minutesPart}:${secondsPart}.${centisecondsPart}`;
+      }
+      const hoursPart = paddedDigits.slice(0, -6);
+      return `${parseInt(hoursPart, 10)}:${minutesPart}:${secondsPart}.${centisecondsPart}`;
     }
 
     function parseDisplayTextToMs(rawText) {
       const trimmedText = rawText.trim();
       if (!trimmedText) return null;
       if (!/^[\d:.]+$/.test(trimmedText)) return null;
-
       const colonParts = trimmedText.split(':');
       if (colonParts.length > 3) return null;
-
       const lastColonPart = colonParts[colonParts.length - 1];
       const dotSplit = lastColonPart.split('.');
       if (dotSplit.length > 2) return null;
-
       const secondsString = dotSplit[0];
       let centisecondsString = dotSplit[1] || '0';
       if (centisecondsString.length > 2) centisecondsString = centisecondsString.substring(0, 2);
       centisecondsString = centisecondsString.padEnd(2, '0');
-
       const secondsValue = parseInt(secondsString, 10);
       const centisecondsValue = parseInt(centisecondsString, 10);
       if (isNaN(secondsValue) || isNaN(centisecondsValue)) return null;
-
-      let minutesValue = 0;
-      let hoursValue = 0;
-      if (colonParts.length >= 2) {
-        minutesValue = parseInt(colonParts[colonParts.length - 2], 10);
-        if (isNaN(minutesValue)) return null;
-      }
-      if (colonParts.length === 3) {
-        hoursValue = parseInt(colonParts[0], 10);
-        if (isNaN(hoursValue)) return null;
-      }
-
+      let minutesValue = 0, hoursValue = 0;
+      if (colonParts.length >= 2) { minutesValue = parseInt(colonParts[colonParts.length - 2], 10); if (isNaN(minutesValue)) return null; }
+      if (colonParts.length === 3) { hoursValue = parseInt(colonParts[0], 10); if (isNaN(hoursValue)) return null; }
       return ((hoursValue * 3600 + minutesValue * 60 + secondsValue) * 100 + centisecondsValue) * 10;
     }
 
-    // ===== Rendering =====
+    function formatWallClockTimestampForDisplay(wallClockMs, options) {
+      options = options || {};
+      const dateObject = new Date(wallClockMs);
+      const dayOfWeekNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const monthAbbreviationNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dayName = dayOfWeekNames[dateObject.getDay()];
+      const monthAbbrev = monthAbbreviationNames[dateObject.getMonth()];
+      const dayOfMonthPadded = dateObject.getDate().toString().padStart(2, '0');
+      const fullYear = dateObject.getFullYear();
+      let hoursValue = dateObject.getHours();
+      const minutesPadded = dateObject.getMinutes().toString().padStart(2, '0');
+      const secondsPadded = dateObject.getSeconds().toString().padStart(2, '0');
+      const meridiemSuffix = hoursValue >= 12 ? 'PM' : 'AM';
+      hoursValue = hoursValue % 12;
+      if (hoursValue === 0) hoursValue = 12;
+      const hoursPadded = hoursValue.toString().padStart(2, '0');
+      const dateString = `${monthAbbrev}-${dayOfMonthPadded}-${fullYear}`;
+      const timeString = options.omitSeconds
+        ? `${hoursPadded}:${minutesPadded} ${meridiemSuffix}`
+        : `${hoursPadded}:${minutesPadded}:${secondsPadded} ${meridiemSuffix}`;
+      const dayPrefixPart = options.includeDayOfWeek ? `${dayName} · ` : '';
+      return `${dayPrefixPart}${dateString} · time: ${timeString}`;
+    }
+
+    // ============ Rendering ============
+    function renderActivityTabs() {
+      while (activityTabsScroller.firstChild) activityTabsScroller.removeChild(activityTabsScroller.firstChild);
+
+      let activeTabElementForScroll = null;
+      for (const activityEntry of appState.activities) {
+        const tabButton = document.createElement('button');
+        tabButton.className = 'activity-tab-button';
+        if (activityEntry.activityId === appState.currentActivityId) {
+          tabButton.classList.add('is-active-tab');
+          activeTabElementForScroll = tabButton;
+        }
+        if (activityEntry.isRunning) tabButton.classList.add('is-running-indicator');
+        tabButton.textContent = activityEntry.activityName;
+        tabButton.setAttribute('data-activity-id', activityEntry.activityId.toString());
+        activityTabsScroller.appendChild(tabButton);
+      }
+
+      const addButton = document.createElement('button');
+      addButton.className = 'activity-tab-add-button';
+      addButton.setAttribute('aria-label', 'Add new activity');
+      addButton.textContent = '+';
+      activityTabsScroller.appendChild(addButton);
+
+      deleteActivityButton.disabled = appState.activities.length <= 1;
+
+      if (activeTabElementForScroll) {
+        setTimeout(() => {
+          activeTabElementForScroll.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+        }, 0);
+      }
+    }
+
     function renderTimerDisplay() {
       const totalElapsedMs = getCurrentTotalElapsedMs();
       const formatted = formatElapsedTimeForDisplay(totalElapsedMs, true);
       timerDisplayValue.innerHTML = `${formatted.mainPart}<span class="digits-centiseconds">.${formatted.centiPart}</span>`;
     }
 
+    function renderSessionStartedLabel() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || currentActivity.sessionStartedAtWallClockMs === null) {
+        sessionStartedLabel.textContent = '';
+        return;
+      }
+      const formattedTimestamp = formatWallClockTimestampForDisplay(currentActivity.sessionStartedAtWallClockMs, { includeDayOfWeek: true });
+      sessionStartedLabel.textContent = `Started ${formattedTimestamp}`;
+    }
+
     function renderControlButtons() {
-      if (stopwatchState.isRunning) {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      if (currentActivity.isRunning) {
         startStopButton.textContent = 'Stop';
         startStopButton.classList.add('is-stop-state');
         lapResetButton.textContent = 'Lap';
@@ -508,33 +734,55 @@
       } else {
         startStopButton.textContent = 'Start';
         startStopButton.classList.remove('is-stop-state');
-        const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
+        const hasAnyTime = currentActivity.accumulatedBeforeSegmentMs > 0 || currentActivity.laps.length > 0;
         lapResetButton.textContent = hasAnyTime ? 'Reset' : 'Lap';
         lapResetButton.disabled = !hasAnyTime;
       }
     }
 
     function renderLapsList() {
-      if (stopwatchState.laps.length === 0) {
-        lapsEmptyState.style.display = 'block';
-        const existingRows = lapsSection.querySelectorAll('.lap-row');
-        existingRows.forEach(rowElement => rowElement.remove());
-        return;
-      }
-
-      lapsEmptyState.style.display = 'none';
-
-      const lapDurationsMs = stopwatchState.laps.map((_, lapIndex) => getLapDurationMs(lapIndex));
-      const fastestDurationMs = Math.min(...lapDurationsMs);
-      const slowestDurationMs = Math.max(...lapDurationsMs);
-      const hasMultipleLaps = stopwatchState.laps.length >= 2;
-
-      const existingRows = lapsSection.querySelectorAll('.lap-row');
+      const currentActivity = getCurrentActivity();
+      // Remove only committed lap rows (exclude the live lap row)
+      const existingRows = lapsSection.querySelectorAll('.lap-row:not(.lap-row-live)');
       existingRows.forEach(rowElement => rowElement.remove());
 
-      // Render newest first
-      for (let lapIndex = stopwatchState.laps.length - 1; lapIndex >= 0; lapIndex--) {
-        const lapEntry = stopwatchState.laps[lapIndex];
+      // Manage live lap row: shown whenever any time has accrued past the last committed split
+      const lastCommittedSplitMs = currentActivity && currentActivity.laps.length >= 1
+        ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs
+        : 0;
+      const shouldShowLiveLap = currentActivity
+        && currentActivity.laps.length >= 1
+        && getCurrentTotalElapsedMs() > lastCommittedSplitMs;
+      if (shouldShowLiveLap) {
+        liveLapRow.style.display = '';
+        liveLapNumberLabel.textContent = `Lap ${currentActivity.laps.length + 1}`;
+        // The live lap "started" when the previous lap was committed
+        const previousLapEntry = currentActivity.laps[currentActivity.laps.length - 1];
+        if (previousLapEntry.recordedAtWallClockMs !== null) {
+          liveLapTimestamp.textContent = formatWallClockTimestampForDisplay(previousLapEntry.recordedAtWallClockMs, { includeDayOfWeek: true });
+          liveLapTimestamp.style.display = '';
+        } else {
+          liveLapTimestamp.textContent = '';
+          liveLapTimestamp.style.display = 'none';
+        }
+        updateLiveLapDurationText();
+      } else {
+        liveLapRow.style.display = 'none';
+      }
+
+      if (!currentActivity || currentActivity.laps.length === 0) {
+        lapsEmptyState.style.display = 'block';
+        return;
+      }
+      lapsEmptyState.style.display = 'none';
+
+      const lapDurationsMs = currentActivity.laps.map((_, lapIndex) => getLapDurationMs(lapIndex));
+      const fastestDurationMs = Math.min(...lapDurationsMs);
+      const slowestDurationMs = Math.max(...lapDurationsMs);
+      const hasMultipleLaps = currentActivity.laps.length >= 2;
+
+      for (let lapIndex = currentActivity.laps.length - 1; lapIndex >= 0; lapIndex--) {
+        const lapEntry = currentActivity.laps[lapIndex];
         const lapDurationMs = lapDurationsMs[lapIndex];
         const lapNumber = lapIndex + 1;
 
@@ -544,97 +792,242 @@
         if (hasMultipleLaps && lapDurationMs === slowestDurationMs) lapRowElement.classList.add('is-worst-lap');
 
         const durationFormatted = formatElapsedTimeForDisplay(lapDurationMs, true);
+        const timestampDisplayText = lapEntry.recordedAtWallClockMs !== null
+          ? formatWallClockTimestampForDisplay(lapEntry.recordedAtWallClockMs, { includeDayOfWeek: true })
+          : '';
 
         lapRowElement.innerHTML = `
-          <div class="lap-row-number">Lap ${lapNumber}</div>
-          <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit lap ${lapNumber}">
-            ${durationFormatted.mainPart}.${durationFormatted.centiPart}
+          <div class="lap-row-main">
+            <div class="lap-row-number">Lap ${lapNumber}</div>
+            <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit lap ${lapNumber}">
+              ${durationFormatted.mainPart}.${durationFormatted.centiPart}
+            </div>
+            <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
           </div>
-          <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
+          ${timestampDisplayText ? `<div class="lap-row-timestamp">${timestampDisplayText}</div>` : ''}
         `;
 
         lapsSection.appendChild(lapRowElement);
       }
     }
 
+    function updateLiveLapDurationText() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || currentActivity.laps.length === 0) return;
+      const lastCommittedSplitMs = currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs;
+      const liveLapDurationMs = getCurrentTotalElapsedMs() - lastCommittedSplitMs;
+      if (liveLapDurationMs <= 0) return;
+      const formatted = formatElapsedTimeForDisplay(liveLapDurationMs, true);
+      liveLapDuration.textContent = `${formatted.mainPart}.${formatted.centiPart}`;
+    }
+
     function renderAll() {
+      renderActivityTabs();
       renderTimerDisplay();
+      renderSessionStartedLabel();
       renderControlButtons();
       renderLapsList();
     }
 
-    // ===== Actions =====
+    // ============ Actions: stopwatch ============
     function handleStartStopPress() {
-      if (stopwatchState.isRunning) {
-        // Stop: bake current segment into accumulated
-        stopwatchState.accumulatedBeforeSegmentMs = getCurrentTotalElapsedMs();
-        stopwatchState.segmentStartTimestamp = null;
-        stopwatchState.isRunning = false;
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      if (currentActivity.isRunning) {
+        currentActivity.accumulatedBeforeSegmentMs = getCurrentTotalElapsedMs();
+        currentActivity.segmentStartTimestamp = null;
+        currentActivity.isRunning = false;
       } else {
-        stopwatchState.segmentStartTimestamp = Date.now();
-        stopwatchState.isRunning = true;
+        currentActivity.segmentStartTimestamp = Date.now();
+        if (currentActivity.sessionStartedAtWallClockMs === null) {
+          currentActivity.sessionStartedAtWallClockMs = Date.now();
+        }
+        currentActivity.isRunning = true;
       }
       persistStateToStorage();
       renderAll();
     }
 
     function handleLapOrResetPress() {
-      if (stopwatchState.isRunning) {
-        // Record a lap at current total
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      if (currentActivity.isRunning) {
         const currentTotalMs = getCurrentTotalElapsedMs();
-        stopwatchState.laps.push({
-          lapId: stopwatchState.nextLapId++,
+        currentActivity.laps.push({
+          lapId: currentActivity.nextLapId++,
           splitTimeMs: currentTotalMs,
+          recordedAtWallClockMs: Date.now(),
         });
         persistStateToStorage();
         renderAll();
       } else {
-        const hasAnyTime = stopwatchState.accumulatedBeforeSegmentMs > 0 || stopwatchState.laps.length > 0;
+        const hasAnyTime = currentActivity.accumulatedBeforeSegmentMs > 0 || currentActivity.laps.length > 0;
         if (!hasAnyTime) return;
-        // Reset everything
-        stopwatchState.accumulatedBeforeSegmentMs = 0;
-        stopwatchState.segmentStartTimestamp = null;
-        stopwatchState.laps = [];
-        stopwatchState.nextLapId = 1;
+        currentActivity.accumulatedBeforeSegmentMs = 0;
+        currentActivity.segmentStartTimestamp = null;
+        currentActivity.laps = [];
+        currentActivity.nextLapId = 1;
+        currentActivity.sessionStartedAtWallClockMs = null;
         persistStateToStorage();
         renderAll();
       }
     }
 
-    function handleDeleteLapPress(lapId) {
-      const lapIndexToDelete = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
-      if (lapIndexToDelete === -1) return;
-      stopwatchState.laps.splice(lapIndexToDelete, 1);
+    function handleDeleteLiveLap() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || currentActivity.laps.length === 0) return;
+      const lastCommittedSplitMs = currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs;
+      const liveDurationMs = getCurrentTotalElapsedMs() - lastCommittedSplitMs;
+      if (liveDurationMs <= 0) return;
+      // Rewind total to lastCommittedSplitMs
+      if (currentActivity.isRunning) {
+        currentActivity.segmentStartTimestamp += liveDurationMs;
+      } else {
+        currentActivity.accumulatedBeforeSegmentMs -= liveDurationMs;
+      }
       persistStateToStorage();
       renderAll();
     }
 
-    // ===== Editing =====
+    function openEditModalForLiveLap() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || currentActivity.laps.length === 0) return;
+      const lastCommittedSplitMs = currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs;
+      const liveDurationMs = getCurrentTotalElapsedMs() - lastCommittedSplitMs;
+      if (liveDurationMs <= 0) return;
+      editModalContext.modeKind = 'live-lap-duration';
+      editModalContext.targetLapId = null;
+      editModalTitle.textContent = `Edit Lap ${currentActivity.laps.length + 1} Duration`;
+      editModalMessage.style.display = 'none';
+      editModalInput.style.display = '';
+      editModalInput.classList.remove('is-text-input');
+      editModalInput.setAttribute('inputmode', 'decimal');
+      const formatted = formatElapsedTimeForDisplay(liveDurationMs, true);
+      editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
+      editModalFormatHint.classList.remove('is-error');
+      editModalFormatHint.textContent = 'Tap input, then type digits (fills from right)';
+      editModalSaveButton.textContent = 'Save';
+      editModalSaveButton.classList.remove('danger-action');
+      editModalSaveButton.classList.add('save-action');
+      showEditModal();
+    }
+
+    function handleDeleteLapPress(lapId) {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const lapIndexToDelete = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
+      if (lapIndexToDelete === -1) return;
+
+      // Capture duration before mutation
+      const deletedDurationMs = getLapDurationMs(lapIndexToDelete);
+
+      currentActivity.laps.splice(lapIndexToDelete, 1);
+
+      // Shift all subsequent splits back by the deleted duration so their durations are preserved
+      for (let shiftIndex = lapIndexToDelete; shiftIndex < currentActivity.laps.length; shiftIndex++) {
+        currentActivity.laps[shiftIndex].splitTimeMs -= deletedDurationMs;
+      }
+
+      // Total shrinks by the deleted duration
+      if (currentActivity.isRunning) {
+        currentActivity.segmentStartTimestamp += deletedDurationMs;
+      } else {
+        currentActivity.accumulatedBeforeSegmentMs -= deletedDurationMs;
+      }
+
+      persistStateToStorage();
+      renderAll();
+    }
+
+    // ============ Actions: activities ============
+    function handleAddActivityPress() {
+      const newActivityId = appState.nextActivityId++;
+      const newActivityName = `Activity ${newActivityId.toString().padStart(2, '0')}`;
+      appState.activities.push(createActivityShell(newActivityId, newActivityName));
+      appState.currentActivityId = newActivityId;
+      persistStateToStorage();
+      renderAll();
+    }
+
+    function handleActivityTabPress(activityId) {
+      if (activityId === appState.currentActivityId) return;
+      appState.currentActivityId = activityId;
+      persistStateToStorage();
+      renderAll();
+    }
+
+    // ============ Modal: shared open/close + dispatch on save ============
     const editModalContext = {
+      modeKind: null,       // 'lap-duration' | 'activity-rename' | 'activity-delete'
       targetLapId: null,
     };
 
     function openEditModalForLap(lapId) {
-      const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const lapIndex = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
       if (lapIndex === -1) return;
-
+      editModalContext.modeKind = 'lap-duration';
       editModalContext.targetLapId = lapId;
       editModalTitle.textContent = `Edit Lap ${lapIndex + 1} Duration`;
-
+      editModalMessage.style.display = 'none';
+      editModalInput.style.display = '';
+      editModalInput.classList.remove('is-text-input');
+      editModalInput.setAttribute('inputmode', 'decimal');
       const lapDurationMs = getLapDurationMs(lapIndex);
       const formatted = formatElapsedTimeForDisplay(lapDurationMs, true);
       editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
-
       editModalFormatHint.classList.remove('is-error');
-      editModalFormatHint.textContent = 'Format: MM:SS.cc or HH:MM:SS.cc';
+      editModalFormatHint.textContent = 'Tap input, then type digits (fills from right)';
+      editModalSaveButton.textContent = 'Save';
+      editModalSaveButton.classList.remove('danger-action');
+      editModalSaveButton.classList.add('save-action');
+      showEditModal();
+    }
+
+    function openEditModalForActivityRename() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      editModalContext.modeKind = 'activity-rename';
+      editModalContext.targetLapId = null;
+      editModalTitle.textContent = 'Rename Activity';
+      editModalMessage.style.display = 'none';
+      editModalInput.style.display = '';
+      editModalInput.classList.add('is-text-input');
+      editModalInput.setAttribute('inputmode', 'text');
+      editModalInput.value = currentActivity.activityName;
+      editModalFormatHint.classList.remove('is-error');
+      editModalFormatHint.textContent = 'Up to 50 characters';
+      editModalSaveButton.textContent = 'Save';
+      editModalSaveButton.classList.remove('danger-action');
+      editModalSaveButton.classList.add('save-action');
+      showEditModal();
+    }
+
+    function openEditModalForActivityDeleteConfirm() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      if (appState.activities.length <= 1) return;
+      editModalContext.modeKind = 'activity-delete';
+      editModalContext.targetLapId = null;
+      editModalTitle.textContent = 'Delete Activity';
+      editModalMessage.style.display = '';
+      editModalMessage.textContent = `Delete "${currentActivity.activityName}" and all ${currentActivity.laps.length} lap(s)? This cannot be undone.`;
+      editModalInput.style.display = 'none';
+      editModalFormatHint.textContent = '';
+      editModalSaveButton.textContent = 'Delete';
+      editModalSaveButton.classList.remove('save-action');
+      editModalSaveButton.classList.add('danger-action');
       showEditModal();
     }
 
     function showEditModal() {
       editModalBackdrop.classList.add('is-visible');
       setTimeout(() => {
-        editModalInput.focus();
-        editModalInput.select();
+        if (editModalInput.style.display !== 'none') {
+          editModalInput.focus();
+          editModalInput.select();
+        }
       }, 100);
     }
 
@@ -644,46 +1037,101 @@
     }
 
     function handleEditModalSave() {
-      const parsedMs = parseDisplayTextToMs(editModalInput.value);
+      if (editModalContext.modeKind === 'lap-duration' || editModalContext.modeKind === 'live-lap-duration') {
+        const parsedMs = parseDisplayTextToMs(editModalInput.value);
+        if (parsedMs === null) {
+          editModalFormatHint.classList.add('is-error');
+          editModalFormatHint.textContent = 'Invalid format';
+          return;
+        }
+        if (parsedMs < 0) {
+          editModalFormatHint.classList.add('is-error');
+          editModalFormatHint.textContent = 'Must be ≥ 0';
+          return;
+        }
+        const currentActivity = getCurrentActivity();
+        if (!currentActivity) { hideEditModal(); return; }
 
-      if (parsedMs === null) {
-        editModalFormatHint.classList.add('is-error');
-        editModalFormatHint.textContent = 'Invalid format';
+        if (editModalContext.modeKind === 'live-lap-duration') {
+          // Adjust total so that (total - lastSplit) == parsedMs
+          if (currentActivity.laps.length === 0) { hideEditModal(); return; }
+          const lastCommittedSplitMs = currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs;
+          const oldLiveDurationMs = getCurrentTotalElapsedMs() - lastCommittedSplitMs;
+          const deltaMs = parsedMs - oldLiveDurationMs;
+          if (currentActivity.isRunning) {
+            currentActivity.segmentStartTimestamp -= deltaMs;
+          } else {
+            currentActivity.accumulatedBeforeSegmentMs += deltaMs;
+          }
+          persistStateToStorage();
+          hideEditModal();
+          renderAll();
+          return;
+        }
+
+        const lapIndex = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === editModalContext.targetLapId);
+        if (lapIndex === -1) { hideEditModal(); return; }
+        const oldDurationMs = getLapDurationMs(lapIndex);
+        const deltaMs = parsedMs - oldDurationMs;
+        for (let shiftIndex = lapIndex; shiftIndex < currentActivity.laps.length; shiftIndex++) {
+          currentActivity.laps[shiftIndex].splitTimeMs += deltaMs;
+        }
+        if (currentActivity.isRunning) {
+          currentActivity.segmentStartTimestamp -= deltaMs;
+        } else {
+          currentActivity.accumulatedBeforeSegmentMs += deltaMs;
+        }
+        persistStateToStorage();
+        hideEditModal();
+        renderAll();
         return;
       }
-      if (parsedMs < 0) {
-        editModalFormatHint.classList.add('is-error');
-        editModalFormatHint.textContent = 'Must be ≥ 0';
+
+      if (editModalContext.modeKind === 'activity-rename') {
+        const trimmedName = editModalInput.value.trim();
+        if (!trimmedName) {
+          editModalFormatHint.classList.add('is-error');
+          editModalFormatHint.textContent = 'Name cannot be empty';
+          return;
+        }
+        const currentActivity = getCurrentActivity();
+        if (!currentActivity) { hideEditModal(); return; }
+        currentActivity.activityName = trimmedName.substring(0, 50);
+        persistStateToStorage();
+        hideEditModal();
+        renderAll();
         return;
       }
 
-      const lapIndex = stopwatchState.laps.findIndex(lapEntry => lapEntry.lapId === editModalContext.targetLapId);
-      if (lapIndex === -1) { hideEditModal(); return; }
-
-      const oldDurationMs = getLapDurationMs(lapIndex);
-      const deltaMs = parsedMs - oldDurationMs;
-
-      // Shift this lap's split and all subsequent splits by delta
-      // This makes this lap's duration change while others' durations stay the same
-      for (let shiftIndex = lapIndex; shiftIndex < stopwatchState.laps.length; shiftIndex++) {
-        stopwatchState.laps[shiftIndex].splitTimeMs += deltaMs;
+      if (editModalContext.modeKind === 'activity-delete') {
+        if (appState.activities.length <= 1) { hideEditModal(); return; }
+        const currentIndex = appState.activities.findIndex(activityEntry => activityEntry.activityId === appState.currentActivityId);
+        if (currentIndex === -1) { hideEditModal(); return; }
+        appState.activities.splice(currentIndex, 1);
+        appState.currentActivityId = appState.activities[Math.max(0, currentIndex - 1)].activityId;
+        persistStateToStorage();
+        hideEditModal();
+        renderAll();
+        return;
       }
-
-      // Total shifts by delta as well
-      if (stopwatchState.isRunning) {
-        stopwatchState.segmentStartTimestamp -= deltaMs;
-      } else {
-        stopwatchState.accumulatedBeforeSegmentMs += deltaMs;
-      }
-
-      persistStateToStorage();
-      hideEditModal();
-      renderAll();
     }
 
-    // ===== Event wiring =====
+    // ============ Event wiring ============
     startStopButton.addEventListener('click', handleStartStopPress);
     lapResetButton.addEventListener('click', handleLapOrResetPress);
+    renameActivityButton.addEventListener('click', openEditModalForActivityRename);
+    deleteActivityButton.addEventListener('click', openEditModalForActivityDeleteConfirm);
+
+    activityTabsScroller.addEventListener('click', (clickEvent) => {
+      const tabTarget = clickEvent.target.closest('.activity-tab-button');
+      if (tabTarget) {
+        const activityIdValue = parseInt(tabTarget.getAttribute('data-activity-id'), 10);
+        handleActivityTabPress(activityIdValue);
+        return;
+      }
+      const addTarget = clickEvent.target.closest('.activity-tab-add-button');
+      if (addTarget) handleAddActivityPress();
+    });
 
     lapsSection.addEventListener('click', (clickEvent) => {
       const durationTarget = clickEvent.target.closest('.lap-row-duration');
@@ -699,33 +1147,54 @@
       }
     });
 
+    liveLapDuration.addEventListener('click', openEditModalForLiveLap);
+    liveLapDeleteButton.addEventListener('click', handleDeleteLiveLap);
+
     editModalCancelButton.addEventListener('click', hideEditModal);
     editModalSaveButton.addEventListener('click', handleEditModalSave);
     editModalBackdrop.addEventListener('click', (clickEvent) => {
       if (clickEvent.target === editModalBackdrop) hideEditModal();
+    });
+    editModalInput.addEventListener('input', () => {
+      if (editModalContext.modeKind !== 'lap-duration' && editModalContext.modeKind !== 'live-lap-duration') return;
+      const formattedValue = autoFormatLapDurationInput(editModalInput.value);
+      if (formattedValue !== editModalInput.value) {
+        editModalInput.value = formattedValue;
+      }
+      editModalFormatHint.classList.remove('is-error');
+      editModalFormatHint.textContent = 'Tap input, then type digits (fills from right)';
+    });
+    // Re-select all on focus so the next keystroke replaces the value cleanly
+    editModalInput.addEventListener('focus', () => {
+      if (editModalContext.modeKind === 'lap-duration' || editModalContext.modeKind === 'live-lap-duration') {
+        setTimeout(() => editModalInput.select(), 0);
+      }
     });
     editModalInput.addEventListener('keydown', (keyEvent) => {
       if (keyEvent.key === 'Enter') { keyEvent.preventDefault(); handleEditModalSave(); }
       if (keyEvent.key === 'Escape') hideEditModal();
     });
 
-    // ===== Animation loop =====
+    // ============ Animation loop ============
     function animationFrameTick() {
-      if (stopwatchState.isRunning) renderTimerDisplay();
+      const currentActivity = getCurrentActivity();
+      if (currentActivity && currentActivity.isRunning) {
+        renderTimerDisplay();
+        updateLiveLapDurationText();
+      }
       requestAnimationFrame(animationFrameTick);
     }
     requestAnimationFrame(animationFrameTick);
 
-    // Safety: save state when page is hidden (user switches away or kills the app)
+    // Safety persistence on hide/close
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') persistStateToStorage();
     });
     window.addEventListener('pagehide', persistStateToStorage);
 
-    // Load any previous session, then initial render
+    // Init
     loadPersistedStateFromStorage();
     renderAll();
   </script>
 </body>
 </html>
-x
