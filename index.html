@@ -399,6 +399,97 @@
     .edit-modal-button.save-action { background: var(--color-accent-edit); color: #1f1408; }
     .edit-modal-button.danger-action { background: var(--color-accent-stop-text); color: #1f0808; }
 
+    /* ===== Wheel picker (reusable: lap duration, goal, date-time) ===== */
+    .wheel-picker {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      gap: 0;
+      position: relative;
+      height: 180px;
+      margin: 4px 0 8px;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+      mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+    }
+    .wheel-picker-selection {
+      position: absolute;
+      left: 8px; right: 8px;
+      top: 50%; transform: translateY(-50%);
+      height: 36px;
+      border-radius: 10px;
+      background: var(--color-surface-raised);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .wheel-column {
+      flex: 1;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      max-width: 96px;
+    }
+    .wheel-column::-webkit-scrollbar { display: none; }
+    .wheel-column-pad { height: 72px; }
+    .wheel-item {
+      height: 36px;
+      line-height: 36px;
+      scroll-snap-align: center;
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 400;
+      color: var(--color-text-muted);
+      font-variant-numeric: tabular-nums;
+      transition: color 120ms ease, transform 120ms ease;
+      cursor: pointer;
+    }
+    .wheel-item.is-centered { color: var(--color-text-primary); font-weight: 500; }
+    .wheel-unit-label {
+      align-self: center;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--color-text-muted);
+      padding: 0 2px;
+      z-index: 1;
+    }
+    .wheel-picker-caption {
+      text-align: center;
+      font-family: var(--font-display);
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin: 0 0 8px;
+      font-variant-numeric: tabular-nums;
+    }
+    .edit-modal-datetime {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin: 4px 0 12px;
+    }
+    .edit-modal-datetime-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+    .edit-modal-datetime-input {
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      color: var(--color-text-primary);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      padding: 8px 10px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
     /* ========== STATS VIEW ========== */
     .timer-view-container {
       display: flex;
@@ -852,6 +943,9 @@
     .stats-empty-title { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: -0.02em; margin: 0; }
     .stats-empty-sub { font-family: var(--font-ui); font-size: 14px; color: var(--color-text-muted); line-height: 1.45; max-width: 280px; margin: 0; }
   </style>
+  <!-- Supabase JS SDK (loads on the deployed site; on a network that blocks it,
+       window.supabase stays undefined and the app falls back to localStorage). -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -891,6 +985,11 @@
         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
         <path d="M10 11v6"/>
         <path d="M14 11v6"/>
+      </svg>
+    </button>
+    <button class="activity-control-icon-button" id="accountButton" aria-label="Account and sync">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
       </svg>
     </button>
   </section>
@@ -1018,20 +1117,38 @@
     </div>
   </div>
 
+  <div class="sheet-backdrop" id="accountSheetBackdrop">
+    <div class="sheet">
+      <span class="sheet-handle"></span>
+      <h3 class="sheet-title">Account &amp; Sync</h3>
+      <p class="sheet-subtitle" id="accountSheetStatus">Sign in to sync your activities across devices.</p>
+      <div id="accountSignedOutView">
+        <div class="sheet-actions">
+          <button class="sheet-button save" id="accountSignInButton">Sign in with Google</button>
+        </div>
+      </div>
+      <div id="accountSignedInView" style="display:none">
+        <div class="sheet-actions">
+          <button class="sheet-button cancel" id="accountCloseButton">Close</button>
+          <button class="sheet-button save" id="accountSignOutButton">Sign out</button>
+        </div>
+      </div>
+      <p class="sheet-subtitle" id="accountSyncHint" style="margin-top:14px;font-size:12px;"></p>
+    </div>
+  </div>
+
   <div class="sheet-backdrop" id="statsGoalSheetBackdrop">
     <div class="sheet">
       <span class="sheet-handle"></span>
       <h3 class="sheet-title">Daily Goal</h3>
-      <p class="sheet-subtitle">Minutes per day that counts as a "hit" for this activity</p>
-      <div class="goal-input-row">
-        <input class="goal-input-number" id="statsGoalInput" type="number" min="1" max="600" value="60" />
-        <span class="goal-input-unit">min</span>
-      </div>
+      <p class="sheet-subtitle">Time per day that counts as a "hit" for this activity</p>
+      <div class="wheel-picker-caption" id="statsGoalCaption">1h 00m</div>
+      <div class="wheel-picker" id="statsGoalWheel"></div>
       <div class="goal-chips" id="statsGoalChips">
         <button class="goal-chip" data-mins="15">15m</button>
         <button class="goal-chip" data-mins="30">30m</button>
-        <button class="goal-chip is-selected" data-mins="60">60m</button>
-        <button class="goal-chip" data-mins="90">90m</button>
+        <button class="goal-chip is-selected" data-mins="60">1h</button>
+        <button class="goal-chip" data-mins="90">1h 30m</button>
         <button class="goal-chip" data-mins="120">2h</button>
       </div>
       <div class="sheet-actions">
@@ -1062,6 +1179,16 @@
     <div class="edit-modal-sheet">
       <h3 class="edit-modal-title" id="editModalTitle">Edit</h3>
       <p class="edit-modal-message" id="editModalMessage" style="display:none"></p>
+      <div class="wheel-picker-caption" id="editModalWheelCaption" style="display:none"></div>
+      <div class="wheel-picker" id="editModalWheel" style="display:none"></div>
+      <div class="edit-modal-datetime" id="editModalDateTimeRow" style="display:none">
+        <label class="edit-modal-datetime-label">Recorded on
+          <input class="edit-modal-datetime-input" id="editModalDateInput" type="date" />
+        </label>
+        <label class="edit-modal-datetime-label">at
+          <input class="edit-modal-datetime-input" id="editModalTimeInput" type="time" />
+        </label>
+      </div>
       <input class="edit-modal-input" id="editModalInput" type="text" inputmode="decimal"
              autocomplete="off" autocorrect="off" spellcheck="false" />
       <div class="edit-modal-format-hint" id="editModalFormatHint"></div>
@@ -1102,11 +1229,122 @@
     const STORAGE_KEY_STATE_V2 = 'chronograph:state:v2';
     const STORAGE_KEY_STATE_V1 = 'chronograph:state:v1';
 
+    // Storage adapter: the ONLY place that touches the storage backend.
+    // To move to cloud sync later, swap this single object for a Supabase/Firebase
+    // adapter implementing the same async interface — no other code needs to change.
+    const localStorageAdapter = {
+      async saveRaw(serializedState) {
+        if (typeof localStorage === 'undefined') return;
+        localStorage.setItem(STORAGE_KEY_STATE_V2, serializedState);
+      },
+      async loadRaw() {
+        if (typeof localStorage === 'undefined') return null;
+        return localStorage.getItem(STORAGE_KEY_STATE_V2);
+      },
+      async loadLegacyV1Raw() {
+        if (typeof localStorage === 'undefined') return null;
+        return localStorage.getItem(STORAGE_KEY_STATE_V1);
+      },
+    };
+    let storageAdapter = localStorageAdapter;
+
+    // Fire-and-forget persist. Async under the hood (cloud-ready) but callers
+    // don't need to await — writes are best-effort and serialized by the adapter.
     function persistStateToStorage() {
       try {
-        if (typeof localStorage === 'undefined') return;
-        localStorage.setItem(STORAGE_KEY_STATE_V2, JSON.stringify(appState));
+        const serializedState = JSON.stringify(appState);
+        Promise.resolve(storageAdapter.saveRaw(serializedState)).catch(() => {});
       } catch (storageError) { /* fail silently */ }
+    }
+
+    // Central commit helper: every state mutation calls this instead of repeating
+    // persistStateToStorage(); renderAll();  When cloud sync adds debounce/conflict
+    // handling, it lives here only.
+    function commitChange() {
+      persistStateToStorage();
+      renderAll();
+    }
+
+    // ============ Reusable wheel picker ============
+    // Builds scroll-snap spinner columns. Each column: { key, length, pad2, unit }.
+    // getValues() returns { key: selectedIndex }. Lightweight, touch-native (uses
+    // the browser's momentum scrolling + scroll-snap), no drag math required.
+    function createWheelPicker(containerElement, columnSpecs, onChange) {
+      containerElement.innerHTML = '';
+      const selectionBand = document.createElement('div');
+      selectionBand.className = 'wheel-picker-selection';
+      containerElement.appendChild(selectionBand);
+
+      const columnStates = [];
+      columnSpecs.forEach((spec, specIndex) => {
+        const columnElement = document.createElement('div');
+        columnElement.className = 'wheel-column';
+        const topPad = document.createElement('div');
+        topPad.className = 'wheel-column-pad';
+        columnElement.appendChild(topPad);
+        for (let i = 0; i < spec.length; i++) {
+          const item = document.createElement('div');
+          item.className = 'wheel-item';
+          item.textContent = spec.pad2 ? i.toString().padStart(2, '0') : i.toString();
+          item.setAttribute('data-value', i.toString());
+          columnElement.appendChild(item);
+        }
+        const bottomPad = document.createElement('div');
+        bottomPad.className = 'wheel-column-pad';
+        columnElement.appendChild(bottomPad);
+        containerElement.appendChild(columnElement);
+
+        if (spec.unit) {
+          const unitLabel = document.createElement('span');
+          unitLabel.className = 'wheel-unit-label';
+          unitLabel.textContent = spec.unit;
+          containerElement.appendChild(unitLabel);
+        }
+
+        const columnState = { spec, columnElement, selectedIndex: 0, scrollDebounce: null };
+        columnStates.push(columnState);
+
+        const ITEM_HEIGHT = 36;
+        function highlightCentered() {
+          const idx = Math.round(columnElement.scrollTop / ITEM_HEIGHT);
+          columnState.selectedIndex = Math.max(0, Math.min(spec.length - 1, idx));
+          const items = columnElement.querySelectorAll('.wheel-item');
+          items.forEach((it, i) => it.classList.toggle('is-centered', i === columnState.selectedIndex));
+        }
+        columnElement.addEventListener('scroll', () => {
+          highlightCentered();
+          if (columnState.scrollDebounce) clearTimeout(columnState.scrollDebounce);
+          columnState.scrollDebounce = setTimeout(() => {
+            if (onChange) onChange(getValues());
+          }, 120);
+        });
+        // Tapping an item scrolls it to center
+        columnElement.addEventListener('click', (clickEvent) => {
+          const item = clickEvent.target.closest('.wheel-item');
+          if (!item) return;
+          const value = parseInt(item.getAttribute('data-value'), 10);
+          columnElement.scrollTo({ top: value * ITEM_HEIGHT, behavior: 'smooth' });
+        });
+      });
+
+      function getValues() {
+        const out = {};
+        columnStates.forEach(cs => { out[cs.spec.key] = cs.selectedIndex; });
+        return out;
+      }
+
+      function setValues(valueMap) {
+        columnStates.forEach(cs => {
+          const v = Math.max(0, Math.min(cs.spec.length - 1, valueMap[cs.spec.key] || 0));
+          cs.selectedIndex = v;
+          // Set scroll without smooth so it's instant on open
+          cs.columnElement.scrollTop = v * 36;
+          const items = cs.columnElement.querySelectorAll('.wheel-item');
+          items.forEach((it, i) => it.classList.toggle('is-centered', i === v));
+        });
+      }
+
+      return { getValues, setValues };
     }
 
     function sanitizeActivity(rawActivity) {
@@ -1138,12 +1376,10 @@
       appState.nextActivityId = 2;
     }
 
-    function loadPersistedStateFromStorage() {
+    async function loadPersistedStateFromStorage() {
       try {
-        if (typeof localStorage === 'undefined') { initializeWithDefaultActivity(); return; }
-
         // Prefer v2
-        const rawV2Json = localStorage.getItem(STORAGE_KEY_STATE_V2);
+        const rawV2Json = await storageAdapter.loadRaw();
         if (rawV2Json) {
           const parsedV2 = JSON.parse(rawV2Json);
           if (parsedV2 && Array.isArray(parsedV2.activities) && parsedV2.activities.length > 0) {
@@ -1159,7 +1395,7 @@
         }
 
         // Migrate v1 (single-stopwatch) -> single activity "Activity 01"
-        const rawV1Json = localStorage.getItem(STORAGE_KEY_STATE_V1);
+        const rawV1Json = await storageAdapter.loadLegacyV1Raw();
         if (rawV1Json) {
           const parsedV1 = JSON.parse(rawV1Json);
           if (parsedV1 && typeof parsedV1 === 'object') {
@@ -1211,6 +1447,11 @@
     const editModalFormatHint = document.getElementById('editModalFormatHint');
     const editModalCancelButton = document.getElementById('editModalCancelButton');
     const editModalSaveButton = document.getElementById('editModalSaveButton');
+    const editModalWheel = document.getElementById('editModalWheel');
+    const editModalWheelCaption = document.getElementById('editModalWheelCaption');
+    const editModalDateTimeRow = document.getElementById('editModalDateTimeRow');
+    const editModalDateInput = document.getElementById('editModalDateInput');
+    const editModalTimeInput = document.getElementById('editModalTimeInput');
 
     // ============ Time math ============
     function getCurrentTotalElapsedMs() {
@@ -1259,6 +1500,29 @@
       }
       const hoursPart = paddedDigits.slice(0, -6);
       return `${parseInt(hoursPart, 10)}:${minutesPart}:${secondsPart}.${centisecondsPart}`;
+    }
+
+    // ms <-> wheel values {hours, minutes, seconds} (second precision; centiseconds dropped)
+    function msToHmsValues(totalMs) {
+      if (totalMs < 0) totalMs = 0;
+      const totalSeconds = Math.floor(totalMs / 1000);
+      return {
+        hours: Math.floor(totalSeconds / 3600),
+        minutes: Math.floor((totalSeconds % 3600) / 60),
+        seconds: totalSeconds % 60,
+      };
+    }
+    function hmsValuesToMs(values) {
+      const hours = values.hours || 0;
+      const minutes = values.minutes || 0;
+      const seconds = values.seconds || 0;
+      return (hours * 3600 + minutes * 60 + seconds) * 1000;
+    }
+    function formatHmsCaption(values) {
+      const pad2 = (n) => n.toString().padStart(2, '0');
+      const hours = values.hours || 0;
+      if (hours > 0) return `${hours}:${pad2(values.minutes || 0)}:${pad2(values.seconds || 0)}`;
+      return `${pad2(values.minutes || 0)}:${pad2(values.seconds || 0)}`;
     }
 
     function parseDisplayTextToMs(rawText) {
@@ -1478,9 +1742,24 @@
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
       if (currentActivity.isRunning) {
-        currentActivity.accumulatedBeforeSegmentMs = getCurrentTotalElapsedMs();
+        const totalAtStopMs = getCurrentTotalElapsedMs();
+        currentActivity.accumulatedBeforeSegmentMs = totalAtStopMs;
         currentActivity.segmentStartTimestamp = null;
         currentActivity.isRunning = false;
+        // Item 4: auto-commit the time since the last lap as a session, so stats
+        // capture the work without needing a manual Lap press. Ignore tiny segments.
+        const AUTO_COMMIT_THRESHOLD_MS = 5000;
+        const lastCommittedSplitMs = currentActivity.laps.length > 0
+          ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs
+          : 0;
+        const uncommittedDurationMs = totalAtStopMs - lastCommittedSplitMs;
+        if (uncommittedDurationMs >= AUTO_COMMIT_THRESHOLD_MS) {
+          currentActivity.laps.push({
+            lapId: currentActivity.nextLapId++,
+            splitTimeMs: totalAtStopMs,
+            recordedAtWallClockMs: Date.now(),
+          });
+        }
       } else {
         currentActivity.segmentStartTimestamp = Date.now();
         if (currentActivity.sessionStartedAtWallClockMs === null) {
@@ -1488,8 +1767,7 @@
         }
         currentActivity.isRunning = true;
       }
-      persistStateToStorage();
-      renderAll();
+      commitChange();
     }
 
     function handleLapOrResetPress() {
@@ -1502,18 +1780,24 @@
           splitTimeMs: currentTotalMs,
           recordedAtWallClockMs: Date.now(),
         });
-        persistStateToStorage();
-        renderAll();
+        commitChange();
       } else {
         const hasAnyTime = currentActivity.accumulatedBeforeSegmentMs > 0 || currentActivity.laps.length > 0;
         if (!hasAnyTime) return;
-        currentActivity.accumulatedBeforeSegmentMs = 0;
-        currentActivity.segmentStartTimestamp = null;
-        currentActivity.laps = [];
-        currentActivity.nextLapId = 1;
-        currentActivity.sessionStartedAtWallClockMs = null;
-        persistStateToStorage();
-        renderAll();
+        const lapCount = currentActivity.laps.length;
+        openConfirmModal(
+          'Reset Stopwatch',
+          `Discard the current time${lapCount > 0 ? ` and all ${lapCount} lap(s)` : ''}? This cannot be undone.`,
+          'Reset',
+          () => {
+            currentActivity.accumulatedBeforeSegmentMs = 0;
+            currentActivity.segmentStartTimestamp = null;
+            currentActivity.laps = [];
+            currentActivity.nextLapId = 1;
+            currentActivity.sessionStartedAtWallClockMs = null;
+            commitChange();
+          }
+        );
       }
     }
 
@@ -1523,14 +1807,20 @@
       const lastCommittedSplitMs = currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs;
       const liveDurationMs = getCurrentTotalElapsedMs() - lastCommittedSplitMs;
       if (liveDurationMs <= 0) return;
-      // Rewind total to lastCommittedSplitMs
-      if (currentActivity.isRunning) {
-        currentActivity.segmentStartTimestamp += liveDurationMs;
-      } else {
-        currentActivity.accumulatedBeforeSegmentMs -= liveDurationMs;
-      }
-      persistStateToStorage();
-      renderAll();
+      const lapNumber = currentActivity.laps.length + 1;
+      openConfirmModal(
+        'Discard Current Lap',
+        `Discard Lap ${lapNumber} (in progress)? Its time will be removed from the total.`,
+        'Discard',
+        () => {
+          if (currentActivity.isRunning) {
+            currentActivity.segmentStartTimestamp += liveDurationMs;
+          } else {
+            currentActivity.accumulatedBeforeSegmentMs -= liveDurationMs;
+          }
+          commitChange();
+        }
+      );
     }
 
     function openEditModalForLiveLap() {
@@ -1541,15 +1831,9 @@
       if (liveDurationMs <= 0) return;
       editModalContext.modeKind = 'live-lap-duration';
       editModalContext.targetLapId = null;
-      editModalTitle.textContent = `Edit Lap ${currentActivity.laps.length + 1} Duration`;
-      editModalMessage.style.display = 'none';
-      editModalInput.style.display = '';
-      editModalInput.classList.remove('is-text-input');
-      editModalInput.setAttribute('inputmode', 'decimal');
-      const formatted = formatElapsedTimeForDisplay(liveDurationMs, true);
-      editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
-      editModalFormatHint.classList.remove('is-error');
-      editModalFormatHint.textContent = 'Tap input, then type digits (fills from right)';
+      editModalTitle.textContent = `Edit Lap ${currentActivity.laps.length + 1}`;
+      resetEditModalRegions();
+      mountDurationWheel(liveDurationMs);
       editModalSaveButton.textContent = 'Save';
       editModalSaveButton.classList.remove('danger-action');
       editModalSaveButton.classList.add('save-action');
@@ -1561,11 +1845,18 @@
       if (!currentActivity) return;
       const lapIndexToMerge = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
       if (lapIndexToMerge <= 0) return; // first lap has no previous to merge with
-      // Remove the boundary at lapIndexToMerge - 1; the lap at lapIndexToMerge keeps its splitTimeMs
-      // and now spans from start-of-previous-lap → its own original split. Total time unchanged.
-      currentActivity.laps.splice(lapIndexToMerge - 1, 1);
-      persistStateToStorage();
-      renderAll();
+      const mergeLapNumber = lapIndexToMerge + 1;
+      openConfirmModal(
+        'Merge Lap',
+        `Merge Lap ${mergeLapNumber} into Lap ${mergeLapNumber - 1}? They'll combine into one lap. Total time is unchanged.`,
+        'Merge',
+        () => {
+          // Remove the boundary at lapIndexToMerge - 1; the lap at lapIndexToMerge keeps its
+          // splitTimeMs and now spans from start-of-previous-lap. Total time unchanged.
+          currentActivity.laps.splice(lapIndexToMerge - 1, 1);
+          commitChange();
+        }
+      );
     }
 
     function handleDeleteLapPress(lapId) {
@@ -1573,26 +1864,28 @@
       if (!currentActivity) return;
       const lapIndexToDelete = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
       if (lapIndexToDelete === -1) return;
-
-      // Capture duration before mutation
-      const deletedDurationMs = getLapDurationMs(lapIndexToDelete);
-
-      currentActivity.laps.splice(lapIndexToDelete, 1);
-
-      // Shift all subsequent splits back by the deleted duration so their durations are preserved
-      for (let shiftIndex = lapIndexToDelete; shiftIndex < currentActivity.laps.length; shiftIndex++) {
-        currentActivity.laps[shiftIndex].splitTimeMs -= deletedDurationMs;
-      }
-
-      // Total shrinks by the deleted duration
-      if (currentActivity.isRunning) {
-        currentActivity.segmentStartTimestamp += deletedDurationMs;
-      } else {
-        currentActivity.accumulatedBeforeSegmentMs -= deletedDurationMs;
-      }
-
-      persistStateToStorage();
-      renderAll();
+      const lapNumber = lapIndexToDelete + 1;
+      openConfirmModal(
+        'Delete Lap',
+        `Delete Lap ${lapNumber}? Its time will be removed from the total.`,
+        'Delete',
+        () => {
+          // Capture duration before mutation
+          const deletedDurationMs = getLapDurationMs(lapIndexToDelete);
+          currentActivity.laps.splice(lapIndexToDelete, 1);
+          // Shift subsequent splits back so their durations are preserved
+          for (let shiftIndex = lapIndexToDelete; shiftIndex < currentActivity.laps.length; shiftIndex++) {
+            currentActivity.laps[shiftIndex].splitTimeMs -= deletedDurationMs;
+          }
+          // Total shrinks by the deleted duration
+          if (currentActivity.isRunning) {
+            currentActivity.segmentStartTimestamp += deletedDurationMs;
+          } else {
+            currentActivity.accumulatedBeforeSegmentMs -= deletedDurationMs;
+          }
+          commitChange();
+        }
+      );
     }
 
     // ============ Actions: activities ============
@@ -1601,15 +1894,13 @@
       const newActivityName = `Activity ${newActivityId.toString().padStart(2, '0')}`;
       appState.activities.push(createActivityShell(newActivityId, newActivityName));
       appState.currentActivityId = newActivityId;
-      persistStateToStorage();
-      renderAll();
+      commitChange();
     }
 
     function handleActivityTabPress(activityId) {
       if (activityId === appState.currentActivityId) return;
       appState.currentActivityId = activityId;
-      persistStateToStorage();
-      renderAll();
+      commitChange();
     }
 
     function handleMoveActivityLeftPress() {
@@ -1618,8 +1909,7 @@
       const swapTemp = appState.activities[currentIndex - 1];
       appState.activities[currentIndex - 1] = appState.activities[currentIndex];
       appState.activities[currentIndex] = swapTemp;
-      persistStateToStorage();
-      renderAll();
+      commitChange();
     }
 
     function handleMoveActivityRightPress() {
@@ -1628,15 +1918,69 @@
       const swapTemp = appState.activities[currentIndex + 1];
       appState.activities[currentIndex + 1] = appState.activities[currentIndex];
       appState.activities[currentIndex] = swapTemp;
-      persistStateToStorage();
-      renderAll();
+      commitChange();
     }
 
     // ============ Modal: shared open/close + dispatch on save ============
     const editModalContext = {
-      modeKind: null,       // 'lap-duration' | 'activity-rename' | 'activity-delete'
+      modeKind: null,       // 'lap-duration' | 'live-lap-duration' | 'activity-rename' | 'activity-delete' | 'confirm'
       targetLapId: null,
     };
+    let editModalWheelController = null;
+
+    // Hide every optional region; each open function re-enables only what it needs.
+    function resetEditModalRegions() {
+      editModalMessage.style.display = 'none';
+      editModalWheelCaption.style.display = 'none';
+      editModalWheel.style.display = 'none';
+      editModalDateTimeRow.style.display = 'none';
+      editModalInput.style.display = 'none';
+      editModalFormatHint.textContent = '';
+      editModalFormatHint.classList.remove('is-error');
+    }
+
+    // Build the duration wheel (H/M/S) inside the edit modal, seeded from ms.
+    function mountDurationWheel(initialMs) {
+      editModalWheelCaption.style.display = '';
+      editModalWheel.style.display = '';
+      const initial = msToHmsValues(initialMs);
+      editModalWheelController = createWheelPicker(
+        editModalWheel,
+        [
+          { key: 'hours', length: 24, pad2: false, unit: 'h' },
+          { key: 'minutes', length: 60, pad2: true, unit: 'm' },
+          { key: 'seconds', length: 60, pad2: true, unit: 's' },
+        ],
+        (values) => { editModalWheelCaption.textContent = formatHmsCaption(values); }
+      );
+      editModalWheelController.setValues(initial);
+      editModalWheelCaption.textContent = formatHmsCaption(initial);
+    }
+
+    // Seed the native date + time inputs from a wall-clock ms timestamp (local tz).
+    function seedDateTimeInputs(wallClockMs) {
+      const dateObject = new Date(wallClockMs);
+      const pad2 = (n) => n.toString().padStart(2, '0');
+      editModalDateInput.value = `${dateObject.getFullYear()}-${pad2(dateObject.getMonth() + 1)}-${pad2(dateObject.getDate())}`;
+      editModalTimeInput.value = `${pad2(dateObject.getHours())}:${pad2(dateObject.getMinutes())}`;
+    }
+
+    // Read the date + time inputs back into a wall-clock ms timestamp. Returns null
+    // if the date input is empty/invalid; preserves seconds from the original ms.
+    function readDateTimeInputs(originalWallClockMs) {
+      const dateValue = editModalDateInput.value;
+      const timeValue = editModalTimeInput.value || '00:00';
+      if (!dateValue) return null;
+      const dateParts = dateValue.split('-').map(part => parseInt(part, 10));
+      const timeParts = timeValue.split(':').map(part => parseInt(part, 10));
+      if (dateParts.length !== 3 || dateParts.some(isNaN)) return null;
+      const originalSeconds = (typeof originalWallClockMs === 'number') ? new Date(originalWallClockMs).getSeconds() : 0;
+      const rebuilt = new Date(
+        dateParts[0], dateParts[1] - 1, dateParts[2],
+        timeParts[0] || 0, timeParts[1] || 0, originalSeconds, 0
+      );
+      return rebuilt.getTime();
+    }
 
     function openEditModalForLap(lapId) {
       const currentActivity = getCurrentActivity();
@@ -1645,16 +1989,15 @@
       if (lapIndex === -1) return;
       editModalContext.modeKind = 'lap-duration';
       editModalContext.targetLapId = lapId;
-      editModalTitle.textContent = `Edit Lap ${lapIndex + 1} Duration`;
-      editModalMessage.style.display = 'none';
-      editModalInput.style.display = '';
-      editModalInput.classList.remove('is-text-input');
-      editModalInput.setAttribute('inputmode', 'decimal');
-      const lapDurationMs = getLapDurationMs(lapIndex);
-      const formatted = formatElapsedTimeForDisplay(lapDurationMs, true);
-      editModalInput.value = `${formatted.mainPart}.${formatted.centiPart}`;
-      editModalFormatHint.classList.remove('is-error');
-      editModalFormatHint.textContent = 'Tap input, then type digits (fills from right)';
+      editModalTitle.textContent = `Edit Lap ${lapIndex + 1}`;
+      resetEditModalRegions();
+      mountDurationWheel(getLapDurationMs(lapIndex));
+      // Item 3: allow changing the recorded date/time of this lap
+      const lapEntry = currentActivity.laps[lapIndex];
+      if (typeof lapEntry.recordedAtWallClockMs === 'number') {
+        editModalDateTimeRow.style.display = '';
+        seedDateTimeInputs(lapEntry.recordedAtWallClockMs);
+      }
       editModalSaveButton.textContent = 'Save';
       editModalSaveButton.classList.remove('danger-action');
       editModalSaveButton.classList.add('save-action');
@@ -1697,6 +2040,24 @@
       showEditModal();
     }
 
+    // Generic confirmation: shows the edit modal in message-only mode with a danger
+    // button. The provided callback runs only if the user taps the confirm button.
+    let pendingConfirmCallback = null;
+    function openConfirmModal(titleText, messageText, confirmLabel, onConfirm) {
+      editModalContext.modeKind = 'confirm';
+      editModalContext.targetLapId = null;
+      pendingConfirmCallback = onConfirm;
+      editModalTitle.textContent = titleText;
+      editModalMessage.style.display = '';
+      editModalMessage.textContent = messageText;
+      editModalInput.style.display = 'none';
+      editModalFormatHint.textContent = '';
+      editModalSaveButton.textContent = confirmLabel;
+      editModalSaveButton.classList.remove('save-action');
+      editModalSaveButton.classList.add('danger-action');
+      showEditModal();
+    }
+
     function showEditModal() {
       editModalBackdrop.classList.add('is-visible');
       setTimeout(() => {
@@ -1713,16 +2074,18 @@
     }
 
     function handleEditModalSave() {
+      if (editModalContext.modeKind === 'confirm') {
+        const callback = pendingConfirmCallback;
+        pendingConfirmCallback = null;
+        hideEditModal();
+        if (typeof callback === 'function') callback();
+        return;
+      }
       if (editModalContext.modeKind === 'lap-duration' || editModalContext.modeKind === 'live-lap-duration') {
-        const parsedMs = parseDisplayTextToMs(editModalInput.value);
-        if (parsedMs === null) {
+        const parsedMs = editModalWheelController ? hmsValuesToMs(editModalWheelController.getValues()) : null;
+        if (parsedMs === null || parsedMs < 0) {
           editModalFormatHint.classList.add('is-error');
-          editModalFormatHint.textContent = 'Invalid format';
-          return;
-        }
-        if (parsedMs < 0) {
-          editModalFormatHint.classList.add('is-error');
-          editModalFormatHint.textContent = 'Must be ≥ 0';
+          editModalFormatHint.textContent = 'Invalid duration';
           return;
         }
         const currentActivity = getCurrentActivity();
@@ -1756,6 +2119,13 @@
           currentActivity.segmentStartTimestamp -= deltaMs;
         } else {
           currentActivity.accumulatedBeforeSegmentMs += deltaMs;
+        }
+        // Item 3: apply any change to the recorded date/time of this lap
+        if (editModalDateTimeRow.style.display !== 'none') {
+          const newRecordedMs = readDateTimeInputs(currentActivity.laps[lapIndex].recordedAtWallClockMs);
+          if (newRecordedMs !== null) {
+            currentActivity.laps[lapIndex].recordedAtWallClockMs = newRecordedMs;
+          }
         }
         persistStateToStorage();
         hideEditModal();
@@ -2380,11 +2750,40 @@
       if (dateKey) openStatsDayDetail(dateKey);
     });
 
+    let statsGoalWheelController = null;
+    function buildStatsGoalCaption(values) {
+      const hours = values.hours || 0;
+      const minutes = values.minutes || 0;
+      if (hours > 0 && minutes > 0) return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+      if (hours > 0) return `${hours}h`;
+      return `${minutes}m`;
+    }
+    function goalMinutesToWheelValues(totalMinutes) {
+      return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
+    }
+    function wheelValuesToGoalMinutes(values) {
+      return (values.hours || 0) * 60 + (values.minutes || 0);
+    }
+
     document.getElementById('statsFooterEditButton').addEventListener('click', () => {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
-      const input = document.getElementById('statsGoalInput');
-      input.value = currentActivity.dailyGoalMinutes;
+      const statsGoalCaption = document.getElementById('statsGoalCaption');
+      const statsGoalWheel = document.getElementById('statsGoalWheel');
+      statsGoalWheelController = createWheelPicker(
+        statsGoalWheel,
+        [
+          { key: 'hours', length: 13, pad2: false, unit: 'h' },
+          { key: 'minutes', length: 60, pad2: true, unit: 'm' },
+        ],
+        (values) => {
+          statsGoalCaption.textContent = buildStatsGoalCaption(values);
+          syncStatsGoalChips(wheelValuesToGoalMinutes(values));
+        }
+      );
+      const initialValues = goalMinutesToWheelValues(currentActivity.dailyGoalMinutes);
+      statsGoalWheelController.setValues(initialValues);
+      statsGoalCaption.textContent = buildStatsGoalCaption(initialValues);
       syncStatsGoalChips(currentActivity.dailyGoalMinutes);
       showStatsSheet('statsGoalSheetBackdrop');
     });
@@ -2397,19 +2796,19 @@
       const chip = clickEvent.target.closest('.goal-chip');
       if (!chip) return;
       const m = parseInt(chip.getAttribute('data-mins'), 10);
-      document.getElementById('statsGoalInput').value = m;
+      if (statsGoalWheelController) {
+        const values = goalMinutesToWheelValues(m);
+        statsGoalWheelController.setValues(values);
+        document.getElementById('statsGoalCaption').textContent = buildStatsGoalCaption(values);
+      }
       syncStatsGoalChips(m);
-    });
-    document.getElementById('statsGoalInput').addEventListener('input', () => {
-      const v = parseInt(document.getElementById('statsGoalInput').value, 10);
-      syncStatsGoalChips(v);
     });
     document.getElementById('statsGoalCancelButton').addEventListener('click', () => hideStatsSheet('statsGoalSheetBackdrop'));
     document.getElementById('statsGoalSaveButton').addEventListener('click', () => {
-      const v = parseInt(document.getElementById('statsGoalInput').value, 10);
       const currentActivity = getCurrentActivity();
-      if (!isNaN(v) && v > 0 && v <= 600 && currentActivity) {
-        currentActivity.dailyGoalMinutes = v;
+      const totalMinutes = statsGoalWheelController ? wheelValuesToGoalMinutes(statsGoalWheelController.getValues()) : 0;
+      if (totalMinutes > 0 && totalMinutes <= 720 && currentActivity) {
+        currentActivity.dailyGoalMinutes = totalMinutes;
         persistStateToStorage();
         renderStatsAll();
       }
@@ -2437,15 +2836,203 @@
     }
     requestAnimationFrame(animationFrameTick);
 
+    // ============ Supabase cloud sync ============
+    // FILL THESE IN after creating your Supabase project (Settings → API).
+    // Until then, SUPABASE_CONFIGURED stays false and the app uses localStorage.
+    const SUPABASE_URL = 'https://qlkmyqkolitpxzqcfexj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsa215cWtvbGl0cHh6cWNmZXhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMTA0MDIsImV4cCI6MjA5NTY4NjQwMn0.-t9BeGa4hLae2ItDGeh5hpk9aM6L-6thkVb3iIkm0uI';
+    const SUPABASE_CONFIGURED =
+      /^https:\/\/[a-z0-9]+\.supabase\.co$/.test(SUPABASE_URL) &&
+      SUPABASE_ANON_KEY.length > 20 &&
+      !SUPABASE_ANON_KEY.includes('YOUR_');
+
+    let supabaseClient = null;
+    let currentUser = null;
+    let realtimeChannel = null;
+
+    // Cloud adapter — same interface as localStorageAdapter, plus internal debounce
+    // so rapid edits coalesce into one write. State stored as a single JSONB blob
+    // per user (matches the localStorage shape; last-write-wins across devices).
+    const supabaseAdapter = {
+      _writeTimer: null,
+      _pendingSerialized: null,
+      async saveRaw(serializedState) {
+        if (!supabaseClient || !currentUser) return;
+        this._pendingSerialized = serializedState;
+        if (this._writeTimer) clearTimeout(this._writeTimer);
+        this._writeTimer = setTimeout(() => { this._flush(); }, 800);
+      },
+      async flushNow() {
+        if (this._writeTimer) { clearTimeout(this._writeTimer); this._writeTimer = null; }
+        await this._flush();
+      },
+      async _flush() {
+        if (!this._pendingSerialized || !supabaseClient || !currentUser) return;
+        const stateObject = JSON.parse(this._pendingSerialized);
+        this._pendingSerialized = null;
+        try {
+          await supabaseClient.from('user_state').upsert({
+            user_id: currentUser.id,
+            state: stateObject,
+            updated_at: new Date().toISOString(),
+          });
+        } catch (cloudWriteError) { /* best-effort; localStorage still holds a copy */ }
+      },
+      async loadRaw() {
+        if (!supabaseClient || !currentUser) return null;
+        try {
+          const { data, error } = await supabaseClient
+            .from('user_state').select('state').eq('user_id', currentUser.id).maybeSingle();
+          if (error || !data || !data.state) return null;
+          return JSON.stringify(data.state);
+        } catch (cloudReadError) { return null; }
+      },
+      async loadLegacyV1Raw() { return null; },
+    };
+
+    // Adopt a remote state object into the running app (used by realtime + initial load).
+    function adoptRemoteState(remoteStateObject) {
+      if (!remoteStateObject || !Array.isArray(remoteStateObject.activities)) return;
+      const incomingSerialized = JSON.stringify(remoteStateObject);
+      if (incomingSerialized === JSON.stringify(appState)) return; // ignore our own echo
+      appState.activities = remoteStateObject.activities.map(sanitizeActivity);
+      const maxExistingActivityId = appState.activities.length
+        ? Math.max(...appState.activities.map(a => a.activityId)) : 0;
+      appState.nextActivityId = (typeof remoteStateObject.nextActivityId === 'number' && remoteStateObject.nextActivityId > maxExistingActivityId)
+        ? remoteStateObject.nextActivityId : maxExistingActivityId + 1;
+      const currentExists = appState.activities.some(a => a.activityId === remoteStateObject.currentActivityId);
+      appState.currentActivityId = currentExists ? remoteStateObject.currentActivityId
+        : (appState.activities[0] ? appState.activities[0].activityId : null);
+      renderAll();
+      if (statsState.currentView === 'stats') renderStatsAll();
+    }
+
+    function subscribeToRealtimeChanges() {
+      if (!supabaseClient || !currentUser) return;
+      if (realtimeChannel) { supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
+      realtimeChannel = supabaseClient
+        .channel('user_state_changes')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'user_state', filter: `user_id=eq.${currentUser.id}` },
+          (payload) => {
+            if (payload && payload.new && payload.new.state) adoptRemoteState(payload.new.state);
+          })
+        .subscribe();
+    }
+
+    // Switch to cloud: load remote (or seed it from local if empty), then subscribe.
+    async function activateCloudForUser(user) {
+      currentUser = user;
+      storageAdapter = supabaseAdapter;
+      const remoteRaw = await supabaseAdapter.loadRaw();
+      if (remoteRaw) {
+        adoptRemoteState(JSON.parse(remoteRaw));
+      } else {
+        // No cloud data yet → push current local state up as the starting point
+        supabaseAdapter._pendingSerialized = JSON.stringify(appState);
+        await supabaseAdapter._flush.call(supabaseAdapter);
+      }
+      subscribeToRealtimeChanges();
+      updateAccountUi();
+    }
+
+    function deactivateCloud() {
+      if (realtimeChannel && supabaseClient) { supabaseClient.removeChannel(realtimeChannel); }
+      realtimeChannel = null;
+      currentUser = null;
+      storageAdapter = localStorageAdapter;
+      updateAccountUi();
+    }
+
+    // ---- Account UI ----
+    const accountButton = document.getElementById('accountButton');
+    const accountSheetStatus = document.getElementById('accountSheetStatus');
+    const accountSignedOutView = document.getElementById('accountSignedOutView');
+    const accountSignedInView = document.getElementById('accountSignedInView');
+    const accountSyncHint = document.getElementById('accountSyncHint');
+
+    function updateAccountUi() {
+      if (!SUPABASE_CONFIGURED) {
+        accountSheetStatus.textContent = 'Cloud sync isn’t set up yet. The app is saving locally on this device.';
+        accountSignedOutView.style.display = 'none';
+        accountSignedInView.style.display = 'none';
+        accountSyncHint.textContent = 'Add your Supabase URL and key in the code to enable Google sign-in and multi-device sync.';
+        return;
+      }
+      if (currentUser) {
+        accountSheetStatus.textContent = `Signed in as ${currentUser.email || 'your account'}.`;
+        accountSignedOutView.style.display = 'none';
+        accountSignedInView.style.display = '';
+        accountSyncHint.textContent = 'Your activities sync automatically across all devices signed into this account.';
+      } else {
+        accountSheetStatus.textContent = 'Sign in to sync your activities across devices.';
+        accountSignedOutView.style.display = '';
+        accountSignedInView.style.display = 'none';
+        accountSyncHint.textContent = 'Signed out — saving locally on this device only.';
+      }
+    }
+
+    accountButton.addEventListener('click', () => {
+      updateAccountUi();
+      showStatsSheet('accountSheetBackdrop');
+    });
+    document.getElementById('accountCloseButton').addEventListener('click', () => hideStatsSheet('accountSheetBackdrop'));
+    document.getElementById('accountSignInButton').addEventListener('click', async () => {
+      if (!supabaseClient) { return; }
+      await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.href.split('#')[0].split('?')[0] },
+      });
+      // Page redirects to Google, returns, onAuthStateChange handles the rest.
+    });
+    document.getElementById('accountSignOutButton').addEventListener('click', async () => {
+      if (supabaseClient) await supabaseClient.auth.signOut();
+      hideStatsSheet('accountSheetBackdrop');
+    });
+
+    // Bootstraps the Supabase client + existing session (if any). Safe no-op when
+    // unconfigured or when the SDK failed to load.
+    async function initSupabase() {
+      if (!SUPABASE_CONFIGURED || typeof window === 'undefined' || !window.supabase) {
+        updateAccountUi();
+        return;
+      }
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (session && session.user) {
+          if (!currentUser || currentUser.id !== session.user.id) {
+            await activateCloudForUser(session.user);
+          }
+        } else {
+          deactivateCloud();
+        }
+      });
+      const { data } = await supabaseClient.auth.getSession();
+      if (data && data.session && data.session.user) {
+        await activateCloudForUser(data.session.user);
+      } else {
+        updateAccountUi();
+      }
+    }
+
     // Safety persistence on hide/close
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') persistStateToStorage();
+      if (document.visibilityState === 'hidden') {
+        persistStateToStorage();
+        if (storageAdapter === supabaseAdapter) supabaseAdapter.flushNow.call(supabaseAdapter);
+      }
     });
-    window.addEventListener('pagehide', persistStateToStorage);
+    window.addEventListener('pagehide', () => {
+      persistStateToStorage();
+      if (storageAdapter === supabaseAdapter) supabaseAdapter.flushNow.call(supabaseAdapter);
+    });
 
     // Init
-    loadPersistedStateFromStorage();
-    renderAll();
-  </script> 
+    (async () => {
+      await loadPersistedStateFromStorage();
+      renderAll();
+      await initSupabase();
+    })();
+  </script>
 </body>
 </html>
