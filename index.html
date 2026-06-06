@@ -33,6 +33,31 @@
       --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      /* Tactile depth — empty in default (flat) theme; the zen theme fills these in. */
+      --button-shadow: none;
+      --button-shadow-active: none;
+      --button-transition: transform 100ms ease;
+    }
+
+    /* Calm / zen ASMR theme — warm, soft, low-contrast palette with tactile buttons. */
+    :root[data-theme="zen"] {
+      --color-background: #e8e2d6;
+      --color-surface: #f3eee4;
+      --color-surface-raised: #ded5c5;
+      --color-border: #d4cab9;
+      --color-text-primary: #3c372f;
+      --color-text-muted: #8b8275;
+      --color-text-dim: #b6ac9b;
+      --color-accent-start-bg: rgba(122, 150, 110, 0.22);
+      --color-accent-start-text: #5f8460;
+      --color-accent-stop-bg: rgba(192, 131, 116, 0.22);
+      --color-accent-stop-text: #b5705f;
+      --color-accent-edit: #bf9355;
+      --color-accent-active-tab: #7f9070;
+      /* Soft raised buttons; press-in on active for a tactile feel. */
+      --button-shadow: 0 2px 5px rgba(90, 78, 58, 0.18), 0 1px 0 rgba(255, 252, 245, 0.7) inset;
+      --button-shadow-active: 0 1px 2px rgba(90, 78, 58, 0.22) inset;
+      --button-transition: transform 120ms ease, box-shadow 120ms ease;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
@@ -52,6 +77,10 @@
       padding-top: var(--safe-top);
       padding-bottom: var(--safe-bottom);
       background: var(--color-background);
+      /* Keep a phone-like column on wide screens so fonts/layout never stretch. */
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
     }
 
     /* === Activity tabs === */
@@ -136,9 +165,10 @@
       touch-action: manipulation;
       display: flex; align-items: center; justify-content: center;
       font-size: 16px;
-      transition: opacity 150ms ease, color 150ms ease;
+      box-shadow: var(--button-shadow);
+      transition: opacity 150ms ease, color 150ms ease, box-shadow 120ms ease;
     }
-    .activity-control-icon-button:active { opacity: 0.6; }
+    .activity-control-icon-button:active { opacity: 0.6; box-shadow: var(--button-shadow-active); }
     .activity-control-icon-button:disabled { opacity: 0.3; cursor: not-allowed; }
     .activity-control-icon-button.is-danger:active { color: var(--color-accent-stop-text); }
 
@@ -198,9 +228,10 @@
       font-size: 17px; font-weight: 400;
       cursor: pointer;
       touch-action: manipulation;
-      transition: transform 100ms ease, opacity 150ms ease;
+      box-shadow: var(--button-shadow);
+      transition: transform 100ms ease, opacity 150ms ease, box-shadow 120ms ease;
     }
-    .control-button:active { transform: scale(0.94); opacity: 0.7; }
+    .control-button:active { transform: scale(0.94); opacity: 0.7; box-shadow: var(--button-shadow-active); }
 
     .control-button.primary-action {
       background: var(--color-accent-start-bg);
@@ -498,6 +529,25 @@
       min-height: 0;
     }
     .timer-view-container.is-hidden { display: none; }
+    .goal-nudge {
+      margin-top: 10px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--color-text-muted);
+      text-align: center;
+      min-height: 16px;
+    }
+    .goal-nudge.is-met { color: var(--color-accent-start-text); }
+    .daimoku-counter {
+      margin-top: 8px;
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 500;
+      color: var(--color-accent-edit);
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+    }
+    .daimoku-counter .daimoku-label { color: var(--color-text-muted); font-weight: 400; font-size: 13px; }
     .stats-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
     .stats-view.is-visible { display: flex; }
 
@@ -891,7 +941,9 @@
       font-size: 13px; font-weight: 500;
       cursor: pointer;
       font-variant-numeric: tabular-nums;
+      box-shadow: var(--button-shadow);
     }
+    .goal-chip:active { box-shadow: var(--button-shadow-active); }
     .goal-chip.is-selected {
       background: var(--color-edit-bg);
       color: var(--color-accent-edit);
@@ -904,10 +956,34 @@
       font-family: var(--font-ui);
       font-size: 15px; font-weight: 600;
       cursor: pointer;
+      box-shadow: var(--button-shadow);
+      transition: var(--button-transition);
     }
-    .sheet-button:active { transform: scale(0.97); }
+    .sheet-button:active { transform: scale(0.97); box-shadow: var(--button-shadow-active); }
     .sheet-button.cancel { background: var(--color-surface-raised); color: var(--color-text-primary); }
     .sheet-button.save { background: var(--color-accent-edit); color: #1f1408; }
+
+    .theme-toggle-section {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 18px; padding-top: 16px; border-top: 0.5px solid var(--color-border);
+    }
+    .theme-toggle-label { font-family: var(--font-ui); font-size: 14px; color: var(--color-text-muted); }
+    .theme-toggle-options { display: flex; gap: 6px; background: var(--color-surface-raised); border-radius: 10px; padding: 3px; }
+    .theme-option {
+      background: transparent; border: none; color: var(--color-text-muted);
+      font-family: var(--font-ui); font-size: 13px; font-weight: 500;
+      padding: 7px 16px; border-radius: 8px; cursor: pointer; touch-action: manipulation;
+      transition: background 150ms ease, color 150ms ease, box-shadow 120ms ease;
+    }
+    .theme-option.is-selected {
+      background: var(--color-background); color: var(--color-text-primary);
+      box-shadow: var(--button-shadow);
+    }
+    .app-version-line {
+      text-align: center; margin: 16px 0 0;
+      font-family: var(--font-ui); font-size: 11px; color: var(--color-text-dim);
+      letter-spacing: 0.04em;
+    }
 
     .day-detail-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
     .day-detail-date { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: -0.02em; }
@@ -946,6 +1022,13 @@
   <!-- Supabase JS SDK (loads on the deployed site; on a network that blocks it,
        window.supabase stays undefined and the app falls back to localStorage). -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- B6: apply the saved theme before first paint to avoid a dark→zen flash. -->
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('chronograph:theme');
+      if (savedTheme && savedTheme !== 'dark') document.documentElement.setAttribute('data-theme', savedTheme);
+    } catch (e) { /* ignore */ }
+  </script>
 </head>
 <body>
 
@@ -999,6 +1082,8 @@
       00:00<span class="digits-centiseconds">.00</span>
     </div>
     <div class="session-started-label" id="sessionStartedLabel"></div>
+    <div class="daimoku-counter" id="daimokuCounter" style="display:none"></div>
+    <div class="goal-nudge" id="goalNudge"></div>
   </section>
 
   <section class="controls-section">
@@ -1128,12 +1213,24 @@
         </div>
       </div>
       <div id="accountSignedInView" style="display:none">
+        <p class="sheet-subtitle" id="accountSyncStatusLine" style="margin-top:0;margin-bottom:12px;font-size:13px;"></p>
         <div class="sheet-actions">
           <button class="sheet-button cancel" id="accountCloseButton">Close</button>
-          <button class="sheet-button save" id="accountSignOutButton">Sign out</button>
+          <button class="sheet-button save" id="accountSyncNowButton">Sync now</button>
+        </div>
+        <div class="sheet-actions" style="margin-top:10px;">
+          <button class="sheet-button cancel" id="accountSignOutButton" style="flex:1;">Sign out</button>
         </div>
       </div>
       <p class="sheet-subtitle" id="accountSyncHint" style="margin-top:14px;font-size:12px;"></p>
+      <div class="theme-toggle-section">
+        <span class="theme-toggle-label">Theme</span>
+        <div class="theme-toggle-options">
+          <button class="theme-option is-selected" id="themeOptionDark" data-theme-name="dark">Dark</button>
+          <button class="theme-option" id="themeOptionZen" data-theme-name="zen">Zen</button>
+        </div>
+      </div>
+      <p class="app-version-line" id="appVersionLine"></p>
     </div>
   </div>
 
@@ -1200,6 +1297,10 @@
   </div>
 
   <script>
+    // ============ Version ============
+    // Bump on every change so the live build is identifiable (shown in Account sheet).
+    const APP_VERSION = '2.3.0';
+
     // ============ State ============
     const appState = {
       activities: [],
@@ -1214,11 +1315,22 @@
         isRunning: false,
         segmentStartTimestamp: null,            // wall-clock ms; anchor for currently running segment
         accumulatedBeforeSegmentMs: 0,          // total ms accumulated before current running segment
-        laps: [],                                // [{ lapId, splitTimeMs, recordedAtWallClockMs }]
+        laps: [],                                // [{ lapId, splitTimeMs, recordedAtWallClockMs, lastModifiedMs }]
         nextLapId: 1,
         sessionStartedAtWallClockMs: null,      // when this session began (first Start after Reset)
         dailyGoalMinutes: 60,                    // user's daily target in minutes (used for stats)
+        lastModifiedMs: Date.now(),              // for multi-device merge: newest activity-level edit wins
+        deletedLapIds: [],                       // tombstones: lapIds deleted, so merge won't resurrect them
       };
+    }
+
+    // Stamp an activity (or lap) as just-modified, so the merge can pick the newest
+    // version per item across devices. Called from mutation sites.
+    function stampActivityModified(activityObject) {
+      if (activityObject) activityObject.lastModifiedMs = Date.now();
+    }
+    function stampLapModified(lapObject) {
+      if (lapObject) lapObject.lastModifiedMs = Date.now();
     }
 
     function getCurrentActivity() {
@@ -1246,14 +1358,18 @@
         return localStorage.getItem(STORAGE_KEY_STATE_V1);
       },
     };
-    let storageAdapter = localStorageAdapter;
+    let storageAdapterUnused = null;
+    // (storageAdapter removed — persistence is now offline-first: localStorage always,
+    // cloud as an overlay. Load reads localStorage directly below.)
 
-    // Fire-and-forget persist. Async under the hood (cloud-ready) but callers
-    // don't need to await — writes are best-effort and serialized by the adapter.
+    // Offline-first persist. ALWAYS writes localStorage (the safe base copy, signed
+    // in or not). When signed in, ALSO queues a debounced cloud push with retry, so
+    // offline changes survive an app close and sync when the connection returns.
     function persistStateToStorage() {
       try {
         const serializedState = JSON.stringify(appState);
-        Promise.resolve(storageAdapter.saveRaw(serializedState)).catch(() => {});
+        Promise.resolve(localStorageAdapter.saveRaw(serializedState)).catch(() => {});
+        if (currentUser) cloudSync.queueWrite(serializedState);
       } catch (storageError) { /* fail silently */ }
     }
 
@@ -1333,7 +1449,9 @@
         return out;
       }
 
+      let lastValueMap = {};
       function setValues(valueMap) {
+        lastValueMap = valueMap || {};
         columnStates.forEach(cs => {
           const v = Math.max(0, Math.min(cs.spec.length - 1, valueMap[cs.spec.key] || 0));
           cs.selectedIndex = v;
@@ -1343,8 +1461,11 @@
           items.forEach((it, i) => it.classList.toggle('is-centered', i === v));
         });
       }
+      // B1: scrollTop set while the modal is display:none doesn't stick. Call this after
+      // the modal/sheet becomes visible to re-apply the intended position.
+      function reapply() { setValues(lastValueMap); }
 
-      return { getValues, setValues };
+      return { getValues, setValues, reapply };
     }
 
     function sanitizeActivity(rawActivity) {
@@ -1361,11 +1482,22 @@
           lapId: lapEntry.lapId,
           splitTimeMs: lapEntry.splitTimeMs,
           recordedAtWallClockMs: typeof lapEntry.recordedAtWallClockMs === 'number' ? lapEntry.recordedAtWallClockMs : null,
+          lastModifiedMs: typeof lapEntry.lastModifiedMs === 'number' ? lapEntry.lastModifiedMs : (typeof lapEntry.recordedAtWallClockMs === 'number' ? lapEntry.recordedAtWallClockMs : 0),
         }))
         : [];
       sanitized.nextLapId = typeof rawActivity.nextLapId === 'number' ? rawActivity.nextLapId : 1;
       sanitized.sessionStartedAtWallClockMs = typeof rawActivity.sessionStartedAtWallClockMs === 'number' ? rawActivity.sessionStartedAtWallClockMs : null;
       sanitized.dailyGoalMinutes = (typeof rawActivity.dailyGoalMinutes === 'number' && rawActivity.dailyGoalMinutes > 0) ? rawActivity.dailyGoalMinutes : 60;
+      // Preserve the real modification time so the multi-device merge compares correctly
+      // (resetting it to "now" here would make a stale cloud copy able to win on reopen).
+      sanitized.lastModifiedMs = typeof rawActivity.lastModifiedMs === 'number' ? rawActivity.lastModifiedMs : 0;
+      sanitized.deletedLapIds = Array.isArray(rawActivity.deletedLapIds)
+        ? rawActivity.deletedLapIds.filter(id => typeof id === 'number') : [];
+      // Drop any laps that are tombstoned (defensive; merge also enforces this).
+      if (sanitized.deletedLapIds.length) {
+        const tombstoned = new Set(sanitized.deletedLapIds);
+        sanitized.laps = sanitized.laps.filter(lapEntry => !tombstoned.has(lapEntry.lapId));
+      }
       if (sanitized.isRunning && sanitized.segmentStartTimestamp === null) sanitized.isRunning = false;
       return sanitized;
     }
@@ -1379,7 +1511,7 @@
     async function loadPersistedStateFromStorage() {
       try {
         // Prefer v2
-        const rawV2Json = await storageAdapter.loadRaw();
+        const rawV2Json = await localStorageAdapter.loadRaw();
         if (rawV2Json) {
           const parsedV2 = JSON.parse(rawV2Json);
           if (parsedV2 && Array.isArray(parsedV2.activities) && parsedV2.activities.length > 0) {
@@ -1395,7 +1527,7 @@
         }
 
         // Migrate v1 (single-stopwatch) -> single activity "Activity 01"
-        const rawV1Json = await storageAdapter.loadLegacyV1Raw();
+        const rawV1Json = await localStorageAdapter.loadLegacyV1Raw();
         if (rawV1Json) {
           const parsedV1 = JSON.parse(rawV1Json);
           if (parsedV1 && typeof parsedV1 === 'object') {
@@ -1461,6 +1593,17 @@
         return currentActivity.accumulatedBeforeSegmentMs + (Date.now() - currentActivity.segmentStartTimestamp);
       }
       return currentActivity.accumulatedBeforeSegmentMs;
+    }
+
+    // Shift an activity's total elapsed by deltaMs (positive = add time, negative = remove),
+    // correctly whether it's running or paused. Used by lap edit, delete, and merge.
+    function adjustTotalByMs(activityObject, deltaMs) {
+      if (!activityObject) return;
+      if (activityObject.isRunning) {
+        activityObject.segmentStartTimestamp -= deltaMs;
+      } else {
+        activityObject.accumulatedBeforeSegmentMs += deltaMs;
+      }
     }
 
     function getLapDurationMs(lapIndex) {
@@ -1735,6 +1878,47 @@
       renderSessionStartedLabel();
       renderControlButtons();
       renderLapsList();
+      renderGoalNudge();
+      renderDaimokuCounter();
+    }
+
+    // Daimoku counter: when the activity name contains "chant", 1 second = 1 Daimoku.
+    // Shows the current session's count (in sync with the displayed timer), hidden otherwise.
+    function activityIsChant(activity) {
+      return !!(activity && typeof activity.activityName === 'string'
+        && activity.activityName.toLowerCase().includes('chant'));
+    }
+    function renderDaimokuCounter() {
+      const daimokuCounter = document.getElementById('daimokuCounter');
+      if (!daimokuCounter) return;
+      const currentActivity = getCurrentActivity();
+      if (!activityIsChant(currentActivity)) { daimokuCounter.style.display = 'none'; return; }
+      const daimokuCount = Math.floor(getCurrentTotalElapsedMs() / 1000);
+      daimokuCounter.style.display = '';
+      daimokuCounter.innerHTML = `${daimokuCount.toLocaleString()} <span class="daimoku-label">Daimoku</span>`;
+    }
+
+    // In-app goal awareness: today's logged minutes vs the activity's daily goal.
+    // Reuses the same data the Stats screen uses (getMinutesForDate + dailyGoalMinutes).
+    function renderGoalNudge() {
+      const goalNudge = document.getElementById('goalNudge');
+      if (!goalNudge) return;
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
+      const goalMinutes = currentActivity.dailyGoalMinutes || 0;
+      const todayMinutes = Math.round(getMinutesForDate(currentActivity, new Date()) || 0);
+      if (goalMinutes <= 0) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
+      if (todayMinutes <= 0) {
+        goalNudge.textContent = `No session yet today · goal ${formatHoursMinutes(goalMinutes)}`;
+        goalNudge.classList.remove('is-met');
+      } else if (todayMinutes >= goalMinutes) {
+        goalNudge.textContent = `Goal met today · ${formatHoursMinutes(todayMinutes)} ✓`;
+        goalNudge.classList.add('is-met');
+      } else {
+        const remaining = goalMinutes - todayMinutes;
+        goalNudge.textContent = `${formatHoursMinutes(todayMinutes)} of ${formatHoursMinutes(goalMinutes)} today · ${formatHoursMinutes(remaining)} to go`;
+        goalNudge.classList.remove('is-met');
+      }
     }
 
     // ============ Actions: stopwatch ============
@@ -1758,14 +1942,17 @@
             lapId: currentActivity.nextLapId++,
             splitTimeMs: totalAtStopMs,
             recordedAtWallClockMs: Date.now(),
+            lastModifiedMs: Date.now(),
           });
         }
+        stampActivityModified(currentActivity);
       } else {
         currentActivity.segmentStartTimestamp = Date.now();
         if (currentActivity.sessionStartedAtWallClockMs === null) {
           currentActivity.sessionStartedAtWallClockMs = Date.now();
         }
         currentActivity.isRunning = true;
+        stampActivityModified(currentActivity);
       }
       commitChange();
     }
@@ -1779,7 +1966,9 @@
           lapId: currentActivity.nextLapId++,
           splitTimeMs: currentTotalMs,
           recordedAtWallClockMs: Date.now(),
+          lastModifiedMs: Date.now(),
         });
+        stampActivityModified(currentActivity);
         commitChange();
       } else {
         const hasAnyTime = currentActivity.accumulatedBeforeSegmentMs > 0 || currentActivity.laps.length > 0;
@@ -1813,11 +2002,7 @@
         `Discard Lap ${lapNumber} (in progress)? Its time will be removed from the total.`,
         'Discard',
         () => {
-          if (currentActivity.isRunning) {
-            currentActivity.segmentStartTimestamp += liveDurationMs;
-          } else {
-            currentActivity.accumulatedBeforeSegmentMs -= liveDurationMs;
-          }
+          adjustTotalByMs(currentActivity, -liveDurationMs);
           commitChange();
         }
       );
@@ -1854,6 +2039,7 @@
           // Remove the boundary at lapIndexToMerge - 1; the lap at lapIndexToMerge keeps its
           // splitTimeMs and now spans from start-of-previous-lap. Total time unchanged.
           currentActivity.laps.splice(lapIndexToMerge - 1, 1);
+          stampActivityModified(currentActivity);
           commitChange();
         }
       );
@@ -1878,11 +2064,11 @@
             currentActivity.laps[shiftIndex].splitTimeMs -= deletedDurationMs;
           }
           // Total shrinks by the deleted duration
-          if (currentActivity.isRunning) {
-            currentActivity.segmentStartTimestamp += deletedDurationMs;
-          } else {
-            currentActivity.accumulatedBeforeSegmentMs -= deletedDurationMs;
-          }
+          adjustTotalByMs(currentActivity, -deletedDurationMs);
+          // Tombstone so a stale copy on another device can't resurrect this lap.
+          if (!Array.isArray(currentActivity.deletedLapIds)) currentActivity.deletedLapIds = [];
+          currentActivity.deletedLapIds.push(lapId);
+          stampActivityModified(currentActivity);
           commitChange();
         }
       );
@@ -2060,6 +2246,10 @@
 
     function showEditModal() {
       editModalBackdrop.classList.add('is-visible');
+      // B1: re-apply wheel scroll now that the modal has layout (was hidden when set).
+      if (editModalWheelController && editModalWheel.style.display !== 'none') {
+        requestAnimationFrame(() => editModalWheelController.reapply());
+      }
       setTimeout(() => {
         if (editModalInput.style.display !== 'none') {
           editModalInput.focus();
@@ -2097,11 +2287,7 @@
           const lastCommittedSplitMs = currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs;
           const oldLiveDurationMs = getCurrentTotalElapsedMs() - lastCommittedSplitMs;
           const deltaMs = parsedMs - oldLiveDurationMs;
-          if (currentActivity.isRunning) {
-            currentActivity.segmentStartTimestamp -= deltaMs;
-          } else {
-            currentActivity.accumulatedBeforeSegmentMs += deltaMs;
-          }
+          adjustTotalByMs(currentActivity, deltaMs);
           persistStateToStorage();
           hideEditModal();
           renderAll();
@@ -2115,11 +2301,7 @@
         for (let shiftIndex = lapIndex; shiftIndex < currentActivity.laps.length; shiftIndex++) {
           currentActivity.laps[shiftIndex].splitTimeMs += deltaMs;
         }
-        if (currentActivity.isRunning) {
-          currentActivity.segmentStartTimestamp -= deltaMs;
-        } else {
-          currentActivity.accumulatedBeforeSegmentMs += deltaMs;
-        }
+        adjustTotalByMs(currentActivity, deltaMs);
         // Item 3: apply any change to the recorded date/time of this lap
         if (editModalDateTimeRow.style.display !== 'none') {
           const newRecordedMs = readDateTimeInputs(currentActivity.laps[lapIndex].recordedAtWallClockMs);
@@ -2127,6 +2309,8 @@
             currentActivity.laps[lapIndex].recordedAtWallClockMs = newRecordedMs;
           }
         }
+        stampLapModified(currentActivity.laps[lapIndex]);
+        stampActivityModified(currentActivity);
         persistStateToStorage();
         hideEditModal();
         renderAll();
@@ -2143,6 +2327,7 @@
         const currentActivity = getCurrentActivity();
         if (!currentActivity) { hideEditModal(); return; }
         currentActivity.activityName = trimmedName.substring(0, 50);
+        stampActivityModified(currentActivity);
         persistStateToStorage();
         hideEditModal();
         renderAll();
@@ -2786,6 +2971,7 @@
       statsGoalCaption.textContent = buildStatsGoalCaption(initialValues);
       syncStatsGoalChips(currentActivity.dailyGoalMinutes);
       showStatsSheet('statsGoalSheetBackdrop');
+      requestAnimationFrame(() => { if (statsGoalWheelController) statsGoalWheelController.reapply(); });
     });
     function syncStatsGoalChips(value) {
       document.querySelectorAll('#statsGoalChips .goal-chip').forEach(chip => {
@@ -2809,6 +2995,7 @@
       const totalMinutes = statsGoalWheelController ? wheelValuesToGoalMinutes(statsGoalWheelController.getValues()) : 0;
       if (totalMinutes > 0 && totalMinutes <= 720 && currentActivity) {
         currentActivity.dailyGoalMinutes = totalMinutes;
+        stampActivityModified(currentActivity);
         persistStateToStorage();
         renderStatsAll();
       }
@@ -2850,61 +3037,207 @@
     let currentUser = null;
     let realtimeChannel = null;
 
-    // Cloud adapter — same interface as localStorageAdapter, plus internal debounce
-    // so rapid edits coalesce into one write. State stored as a single JSONB blob
-    // per user (matches the localStorage shape; last-write-wins across devices).
-    const supabaseAdapter = {
+    // ============ Cloud sync controller ============
+    // One object owns all cloud behavior: low-level read/write, a debounced+retrying
+    // write queue, pull, merge, and sync-status reporting. Offline-safe: failed writes
+    // are retried; localStorage always holds the base copy regardless.
+    const SYNC_DEBOUNCE_MS = 800;
+    const SYNC_RETRY_MS = 5000;
+
+    const cloudSync = {
       _writeTimer: null,
-      _pendingSerialized: null,
-      async saveRaw(serializedState) {
-        if (!supabaseClient || !currentUser) return;
+      _retryTimer: null,
+      _pendingSerialized: null,   // latest state waiting to be written
+      _inFlight: false,
+      lastSyncedAtMs: null,
+      status: 'idle',             // 'idle' | 'syncing' | 'synced' | 'error' | 'offline'
+
+      // Queue a debounced write (called on every change while signed in).
+      queueWrite(serializedState) {
         this._pendingSerialized = serializedState;
         if (this._writeTimer) clearTimeout(this._writeTimer);
-        this._writeTimer = setTimeout(() => { this._flush(); }, 800);
+        this._writeTimer = setTimeout(() => { this._flush(); }, SYNC_DEBOUNCE_MS);
       },
+
+      // Force any pending write out immediately (on app close, or manual sync).
       async flushNow() {
         if (this._writeTimer) { clearTimeout(this._writeTimer); this._writeTimer = null; }
         await this._flush();
       },
+
       async _flush() {
         if (!this._pendingSerialized || !supabaseClient || !currentUser) return;
-        const stateObject = JSON.parse(this._pendingSerialized);
-        this._pendingSerialized = null;
+        if (this._inFlight) return; // a write is already running; latest pending will follow
+        const serialized = this._pendingSerialized;
+        this._inFlight = true;
+        this._setStatus('syncing');
         try {
-          await supabaseClient.from('user_state').upsert({
+          const stateObject = JSON.parse(serialized);
+          const { error } = await supabaseClient.from('user_state').upsert({
             user_id: currentUser.id,
             state: stateObject,
             updated_at: new Date().toISOString(),
           });
-        } catch (cloudWriteError) { /* best-effort; localStorage still holds a copy */ }
+          if (error) throw error;
+          // Only clear pending if nothing newer arrived while we were writing.
+          if (this._pendingSerialized === serialized) this._pendingSerialized = null;
+          this.lastSyncedAtMs = Date.now();
+          this._setStatus('synced');
+        } catch (cloudWriteError) {
+          // Keep _pendingSerialized; schedule a retry. localStorage already has it.
+          this._setStatus(navigator && navigator.onLine === false ? 'offline' : 'error');
+          this._scheduleRetry();
+        } finally {
+          this._inFlight = false;
+          // B2: a change may have arrived while this write was in flight — flush it now
+          // so the latest state always reaches the cloud without waiting for next change.
+          if (this._pendingSerialized && supabaseClient && currentUser) {
+            this._scheduleImmediateFlush();
+          }
+        }
       },
-      async loadRaw() {
+
+      _scheduleImmediateFlush() {
+        if (this._writeTimer) clearTimeout(this._writeTimer);
+        this._writeTimer = setTimeout(() => { this._flush(); }, 0);
+      },
+
+      _scheduleRetry() {
+        if (this._retryTimer) return;
+        this._retryTimer = setTimeout(() => {
+          this._retryTimer = null;
+          this._flush();
+        }, SYNC_RETRY_MS);
+      },
+
+      // Fetch the cloud copy as a parsed object (or null).
+      async pull() {
         if (!supabaseClient || !currentUser) return null;
         try {
           const { data, error } = await supabaseClient
             .from('user_state').select('state').eq('user_id', currentUser.id).maybeSingle();
           if (error || !data || !data.state) return null;
-          return JSON.stringify(data.state);
+          return data.state;
         } catch (cloudReadError) { return null; }
       },
-      async loadLegacyV1Raw() { return null; },
+
+      _setStatus(nextStatus) {
+        this.status = nextStatus;
+        updateSyncStatusUi();
+      },
     };
 
-    // Adopt a remote state object into the running app (used by realtime + initial load).
-    function adoptRemoteState(remoteStateObject) {
-      if (!remoteStateObject || !Array.isArray(remoteStateObject.activities)) return;
-      const incomingSerialized = JSON.stringify(remoteStateObject);
-      if (incomingSerialized === JSON.stringify(appState)) return; // ignore our own echo
-      appState.activities = remoteStateObject.activities.map(sanitizeActivity);
-      const maxExistingActivityId = appState.activities.length
-        ? Math.max(...appState.activities.map(a => a.activityId)) : 0;
-      appState.nextActivityId = (typeof remoteStateObject.nextActivityId === 'number' && remoteStateObject.nextActivityId > maxExistingActivityId)
-        ? remoteStateObject.nextActivityId : maxExistingActivityId + 1;
-      const currentExists = appState.activities.some(a => a.activityId === remoteStateObject.currentActivityId);
-      appState.currentActivityId = currentExists ? remoteStateObject.currentActivityId
-        : (appState.activities[0] ? appState.activities[0].activityId : null);
+    // Retry pending cloud writes the moment the network returns.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => { if (currentUser) cloudSync._flush(); });
+    }
+
+    // ---- Merge (multi-device conflict handling) ----
+    // Per-item newest-wins by lastModifiedMs. Laps merge by lapId; activities by their
+    // own lastModifiedMs for name/goal/timer fields. Prevents the whole-blob clobber of
+    // plain last-write-wins, so concurrent edits on different items both survive.
+    function mergeLapLists(localLaps, remoteLaps) {
+      const lapsById = {};
+      (localLaps || []).forEach(lapEntry => { lapsById[lapEntry.lapId] = lapEntry; });
+      (remoteLaps || []).forEach(remoteLap => {
+        const localLap = lapsById[remoteLap.lapId];
+        if (!localLap || (remoteLap.lastModifiedMs || 0) > (localLap.lastModifiedMs || 0)) {
+          lapsById[remoteLap.lapId] = remoteLap;
+        }
+      });
+      return Object.values(lapsById).sort((a, b) => a.splitTimeMs - b.splitTimeMs);
+    }
+
+    function mergeActivity(localActivity, remoteActivity) {
+      // Base record (name, goal, running/timer fields) = whichever was modified last.
+      const base = (remoteActivity.lastModifiedMs || 0) > (localActivity.lastModifiedMs || 0)
+        ? remoteActivity : localActivity;
+      const merged = Object.assign({}, base);
+
+      // B5: if BOTH devices have this activity running at once, picking by lastModifiedMs
+      // can make the displayed time jump backward. Instead keep whichever session is
+      // further along (greater elapsed) so the timer only ever moves forward — stable
+      // for a "control on one device, view on the other" setup.
+      if (localActivity.isRunning && remoteActivity.isRunning
+          && typeof localActivity.segmentStartTimestamp === 'number'
+          && typeof remoteActivity.segmentStartTimestamp === 'number') {
+        const nowMs = Date.now();
+        const localElapsed = (localActivity.accumulatedBeforeSegmentMs || 0) + (nowMs - localActivity.segmentStartTimestamp);
+        const remoteElapsed = (remoteActivity.accumulatedBeforeSegmentMs || 0) + (nowMs - remoteActivity.segmentStartTimestamp);
+        const further = remoteElapsed >= localElapsed ? remoteActivity : localActivity;
+        merged.isRunning = true;
+        merged.segmentStartTimestamp = further.segmentStartTimestamp;
+        merged.accumulatedBeforeSegmentMs = further.accumulatedBeforeSegmentMs || 0;
+      }
+
+      // Union tombstones from both sides; a lap deleted on either device stays deleted.
+      const mergedDeletedIds = Array.from(new Set([
+        ...(Array.isArray(localActivity.deletedLapIds) ? localActivity.deletedLapIds : []),
+        ...(Array.isArray(remoteActivity.deletedLapIds) ? remoteActivity.deletedLapIds : []),
+      ]));
+      merged.deletedLapIds = mergedDeletedIds;
+      const tombstoned = new Set(mergedDeletedIds);
+      merged.laps = mergeLapLists(localActivity.laps, remoteActivity.laps)
+        .filter(lapEntry => !tombstoned.has(lapEntry.lapId));
+      merged.nextLapId = Math.max(localActivity.nextLapId || 1, remoteActivity.nextLapId || 1,
+        merged.laps.reduce((mx, l) => Math.max(mx, l.lapId + 1), 1));
+      return merged;
+    }
+
+    function mergeStates(localState, remoteState) {
+      if (!remoteState || !Array.isArray(remoteState.activities)) return localState;
+      if (!localState || !Array.isArray(localState.activities)) return remoteState;
+
+      const activitiesById = {};
+      localState.activities.forEach(activityEntry => { activitiesById[activityEntry.activityId] = activityEntry; });
+      remoteState.activities.forEach(remoteActivity => {
+        const localActivity = activitiesById[remoteActivity.activityId];
+        activitiesById[remoteActivity.activityId] = localActivity
+          ? mergeActivity(localActivity, remoteActivity)
+          : remoteActivity;
+      });
+
+      const mergedActivities = Object.values(activitiesById).map(sanitizeActivity);
+      const maxExistingActivityId = mergedActivities.length
+        ? Math.max(...mergedActivities.map(a => a.activityId)) : 0;
+      const mergedNextActivityId = Math.max(
+        localState.nextActivityId || 1, remoteState.nextActivityId || 1, maxExistingActivityId + 1);
+
+      // Keep the local current selection if it still exists; else the remote one; else first.
+      let mergedCurrentId = localState.currentActivityId;
+      if (!mergedActivities.some(a => a.activityId === mergedCurrentId)) mergedCurrentId = remoteState.currentActivityId;
+      if (!mergedActivities.some(a => a.activityId === mergedCurrentId)) {
+        mergedCurrentId = mergedActivities[0] ? mergedActivities[0].activityId : null;
+      }
+
+      return { activities: mergedActivities, currentActivityId: mergedCurrentId, nextActivityId: mergedNextActivityId };
+    }
+
+    // Merge a remote state object into the running app state, then re-render. Used by
+    // realtime, initial cloud activation, and manual sync. Echo-safe (no-op if identical).
+    function mergeRemoteIntoLocal(remoteStateObject) {
+      if (!remoteStateObject || !Array.isArray(remoteStateObject.activities)) return false;
+      const beforeSerialized = JSON.stringify(appState);
+      if (JSON.stringify(remoteStateObject) === beforeSerialized) return false; // our own echo
+      const merged = mergeStates(
+        { activities: appState.activities, currentActivityId: appState.currentActivityId, nextActivityId: appState.nextActivityId },
+        remoteStateObject
+      );
+      const candidate = {
+        activities: merged.activities,
+        currentActivityId: merged.currentActivityId,
+        nextActivityId: merged.nextActivityId,
+      };
+      // B3: only adopt + re-render + persist if the merge actually changed our state.
+      // Prevents needless cloud writes and cross-device write ping-pong.
+      const afterSerialized = JSON.stringify(Object.assign({}, appState, candidate));
+      if (afterSerialized === beforeSerialized) return false;
+      appState.activities = candidate.activities;
+      appState.currentActivityId = candidate.currentActivityId;
+      appState.nextActivityId = candidate.nextActivityId;
       renderAll();
       if (statsState.currentView === 'stats') renderStatsAll();
+      return true;
     }
 
     function subscribeToRealtimeChanges() {
@@ -2915,23 +3248,25 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'user_state', filter: `user_id=eq.${currentUser.id}` },
           (payload) => {
-            if (payload && payload.new && payload.new.state) adoptRemoteState(payload.new.state);
+            if (payload && payload.new && payload.new.state) {
+              const didChange = mergeRemoteIntoLocal(payload.new.state);
+              // Reconcile the merged result back so all devices converge.
+              if (didChange) persistStateToStorage();
+            }
           })
         .subscribe();
     }
 
-    // Switch to cloud: load remote (or seed it from local if empty), then subscribe.
+    // On sign-in: pull cloud, merge with local, write the merged result back, subscribe.
     async function activateCloudForUser(user) {
       currentUser = user;
-      storageAdapter = supabaseAdapter;
-      const remoteRaw = await supabaseAdapter.loadRaw();
-      if (remoteRaw) {
-        adoptRemoteState(JSON.parse(remoteRaw));
-      } else {
-        // No cloud data yet → push current local state up as the starting point
-        supabaseAdapter._pendingSerialized = JSON.stringify(appState);
-        await supabaseAdapter._flush.call(supabaseAdapter);
+      const remoteState = await cloudSync.pull();
+      if (remoteState) {
+        mergeRemoteIntoLocal(remoteState);
       }
+      // Push the (merged or local-only) state up as the current truth.
+      cloudSync._pendingSerialized = JSON.stringify(appState);
+      await cloudSync.flushNow();
       subscribeToRealtimeChanges();
       updateAccountUi();
     }
@@ -2940,8 +3275,21 @@
       if (realtimeChannel && supabaseClient) { supabaseClient.removeChannel(realtimeChannel); }
       realtimeChannel = null;
       currentUser = null;
-      storageAdapter = localStorageAdapter;
+      cloudSync.status = 'idle';
+      cloudSync.lastSyncedAtMs = null;
       updateAccountUi();
+    }
+
+    // Manual "Sync now": flush pending writes, pull remote, merge, push merged back.
+    // Safe regardless of direction — read → merge → write → apply (no clobber).
+    async function syncNow() {
+      if (!supabaseClient || !currentUser) return;
+      cloudSync._setStatus('syncing');
+      await cloudSync.flushNow();                 // push anything pending first
+      const remoteState = await cloudSync.pull(); // then pull latest
+      if (remoteState) mergeRemoteIntoLocal(remoteState);
+      cloudSync._pendingSerialized = JSON.stringify(appState);
+      await cloudSync.flushNow();                 // write merged result back
     }
 
     // ---- Account UI ----
@@ -2950,6 +3298,57 @@
     const accountSignedOutView = document.getElementById('accountSignedOutView');
     const accountSignedInView = document.getElementById('accountSignedInView');
     const accountSyncHint = document.getElementById('accountSyncHint');
+    const accountSyncStatusLine = document.getElementById('accountSyncStatusLine');
+    const accountSyncNowButton = document.getElementById('accountSyncNowButton');
+
+    // ---- Theme (device-level preference; not synced across devices) ----
+    const THEME_STORAGE_KEY = 'chronograph:theme';
+    const AVAILABLE_THEMES = ['dark', 'zen'];
+    function applyTheme(themeName) {
+      const safeName = AVAILABLE_THEMES.includes(themeName) ? themeName : 'dark';
+      // 'dark' is the default :root with no attribute; others use data-theme.
+      if (safeName === 'dark') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', safeName);
+      try { localStorage.setItem(THEME_STORAGE_KEY, safeName); } catch (e) { /* ignore */ }
+      document.querySelectorAll('.theme-option').forEach(option => {
+        option.classList.toggle('is-selected', option.getAttribute('data-theme-name') === safeName);
+      });
+    }
+    function loadSavedTheme() {
+      let saved = 'dark';
+      try { saved = localStorage.getItem(THEME_STORAGE_KEY) || 'dark'; } catch (e) { /* ignore */ }
+      applyTheme(saved);
+    }
+    document.querySelectorAll('.theme-option').forEach(option => {
+      option.addEventListener('click', () => applyTheme(option.getAttribute('data-theme-name')));
+    });
+    const appVersionLine = document.getElementById('appVersionLine');
+    if (appVersionLine) appVersionLine.textContent = `Chronograph v${APP_VERSION}`;
+
+    // Reflect cloudSync.status + last-synced time in the account sheet.
+    function updateSyncStatusUi() {
+      if (!accountSyncStatusLine) return;
+      const formatLastSynced = () => {
+        if (!cloudSync.lastSyncedAtMs) return '';
+        const d = new Date(cloudSync.lastSyncedAtMs);
+        const hh = d.getHours(); const mm = d.getMinutes().toString().padStart(2, '0');
+        const ampm = hh >= 12 ? 'PM' : 'AM'; const h12 = ((hh + 11) % 12) + 1;
+        return ` · Last synced ${h12}:${mm} ${ampm}`;
+      };
+      let label;
+      switch (cloudSync.status) {
+        case 'syncing': label = 'Syncing…'; break;
+        case 'synced':  label = `Synced ✓${formatLastSynced()}`; break;
+        case 'offline': label = `Offline — will sync when back online${formatLastSynced()}`; break;
+        case 'error':   label = `Sync failed — will retry${formatLastSynced()}`; break;
+        default:        label = cloudSync.lastSyncedAtMs ? `Synced ✓${formatLastSynced()}` : 'Not synced yet';
+      }
+      accountSyncStatusLine.textContent = label;
+      if (accountSyncNowButton) {
+        accountSyncNowButton.disabled = (cloudSync.status === 'syncing');
+        accountSyncNowButton.textContent = (cloudSync.status === 'syncing') ? 'Syncing…' : 'Sync now';
+      }
+    }
 
     function updateAccountUi() {
       if (!SUPABASE_CONFIGURED) {
@@ -2974,9 +3373,13 @@
 
     accountButton.addEventListener('click', () => {
       updateAccountUi();
+      updateSyncStatusUi();
       showStatsSheet('accountSheetBackdrop');
     });
     document.getElementById('accountCloseButton').addEventListener('click', () => hideStatsSheet('accountSheetBackdrop'));
+    if (accountSyncNowButton) {
+      accountSyncNowButton.addEventListener('click', async () => { await syncNow(); });
+    }
     document.getElementById('accountSignInButton').addEventListener('click', async () => {
       if (!supabaseClient) { return; }
       await supabaseClient.auth.signInWithOAuth({
@@ -3019,16 +3422,17 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         persistStateToStorage();
-        if (storageAdapter === supabaseAdapter) supabaseAdapter.flushNow.call(supabaseAdapter);
+        if (currentUser) cloudSync.flushNow();
       }
     });
     window.addEventListener('pagehide', () => {
       persistStateToStorage();
-      if (storageAdapter === supabaseAdapter) supabaseAdapter.flushNow.call(supabaseAdapter);
+      if (currentUser) cloudSync.flushNow();
     });
 
     // Init
     (async () => {
+      loadSavedTheme();
       await loadPersistedStateFromStorage();
       renderAll();
       await initSupabase();
