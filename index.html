@@ -548,6 +548,48 @@
       letter-spacing: 0.01em;
     }
     .daimoku-counter .daimoku-label { color: var(--color-text-muted); font-weight: 400; font-size: 13px; }
+    .subject-color-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .study-goal-mode {
+      display: flex; gap: 4px; margin: 4px auto 12px; padding: 3px;
+      background: var(--color-background); border-radius: 10px; width: fit-content;
+    }
+    .study-goal-mode-option {
+      border: none; background: transparent; cursor: pointer;
+      font-family: var(--font-ui); font-size: 13px; color: var(--color-text-muted);
+      padding: 6px 16px; border-radius: 8px; transition: background 0.15s, color 0.15s;
+    }
+    .study-goal-mode-option.is-selected {
+      background: var(--color-surface); color: var(--color-text-primary);
+      box-shadow: var(--button-shadow);
+    }
+    .study-overview-total { font-family: var(--font-ui); font-size: 13px; color: var(--color-text-muted); }
+    .study-overview-total strong { color: var(--color-text-primary); font-weight: 600; }
+    .study-overview-list { display: flex; flex-direction: column; gap: 2px; }
+    .study-overview-row {
+      display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--color-divider); font-family: var(--font-ui);
+    }
+    .study-overview-row:last-child { border-bottom: none; }
+    .study-overview-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .study-overview-name { font-size: 14px; color: var(--color-text-primary); }
+    .study-overview-today { font-size: 13px; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+    .study-overview-week { font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; min-width: 56px; text-align: right; }
+    .study-overview-head-row {
+      display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px;
+      font-family: var(--font-ui); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--color-text-dim); padding-bottom: 4px;
+    }
+    .study-breakdown { margin-top: 16px; }
+    .study-breakdown-label { font-family: var(--font-ui); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-dim); margin-bottom: 8px; }
+    .study-breakdown-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--color-background); }
+    .study-breakdown-seg { height: 100%; }
+    .study-breakdown-empty { font-family: var(--font-ui); font-size: 12px; color: var(--color-text-muted); }
+    .study-breakdown-legend { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 10px; }
+    .study-breakdown-legend-item { display: flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-size: 12px; color: var(--color-text-muted); }
+    .study-breakdown-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
     .stats-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
     .stats-view.is-visible { display: flex; }
 
@@ -822,6 +864,23 @@
     .cal-cell-future .cal-cell-dur { color: transparent; }
     .cal-cell-today { box-shadow: inset 0 0 0 1.5px var(--color-accent-active-tab); }
     .cal-cell-today .cal-cell-num { color: var(--color-accent-active-tab); font-weight: 700; }
+
+    /* Year heat-map (GitHub-style) */
+    .heatmap-legend { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); font-size: 10px; color: var(--color-text-muted); }
+    .heatmap-legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+    .heatmap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+    .heatmap-scroll::-webkit-scrollbar { display: none; }
+    .heatmap-months { display: flex; font-family: var(--font-ui); font-size: 10px; color: var(--color-text-muted); margin-bottom: 4px; height: 12px; }
+    .heatmap-month-label { flex-shrink: 0; }
+    .heatmap-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; }
+    .heatmap-day { width: 11px; height: 11px; border-radius: 2px; }
+    .heat-empty { background: transparent; }
+    .heat-0 { background: rgba(120, 120, 128, 0.16); }
+    .heat-1 { background: var(--color-warning-bg); }
+    .heat-2 { background: color-mix(in srgb, var(--color-success-bg) 60%, var(--color-warning-bg)); }
+    .heat-3 { background: var(--color-success-bg); }
+    .heat-4 { background: var(--color-accent-start-text); }
+    .heatmap-day-today { box-shadow: inset 0 0 0 1.5px var(--color-accent-active-tab); }
 
     .footer-note {
       padding: 12px var(--content-gutter) 8px;
@@ -1122,6 +1181,21 @@
     <main class="stats-page" id="statsPage">
       <section class="stats-section summary-cards" id="statsSummaryCards"></section>
 
+      <section class="stats-section" id="studyOverviewSection" style="display:none">
+        <div class="stats-card">
+          <div class="cal-head">
+            <div class="cal-title">All subjects</div>
+            <div class="study-overview-total" id="studyOverviewTotal">—</div>
+          </div>
+          <div class="study-overview-list" id="studyOverviewList"></div>
+          <div class="study-breakdown" id="studyBreakdownWrap">
+            <div class="study-breakdown-label">This week split</div>
+            <div class="study-breakdown-bar" id="studyBreakdownBar"></div>
+            <div class="study-breakdown-legend" id="studyBreakdownLegend"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="stats-section">
         <div class="range-segmented" id="statsRangeSegmented">
           <button class="range-segment" data-range="7">7d</button>
@@ -1170,6 +1244,27 @@
             <div class="cal-weekday">S</div><div class="cal-weekday">M</div><div class="cal-weekday">T</div><div class="cal-weekday">W</div><div class="cal-weekday">T</div><div class="cal-weekday">F</div><div class="cal-weekday">S</div>
           </div>
           <div class="cal-grid" id="statsCalGrid"></div>
+        </div>
+      </section>
+
+      <section class="stats-section">
+        <div class="stats-card">
+          <div class="cal-head">
+            <div class="cal-title">Past year</div>
+            <div class="heatmap-legend">
+              <span>Less</span>
+              <span class="heatmap-legend-swatch heat-0"></span>
+              <span class="heatmap-legend-swatch heat-1"></span>
+              <span class="heatmap-legend-swatch heat-2"></span>
+              <span class="heatmap-legend-swatch heat-3"></span>
+              <span class="heatmap-legend-swatch heat-4"></span>
+              <span>More</span>
+            </div>
+          </div>
+          <div class="heatmap-scroll">
+            <div class="heatmap-months" id="statsHeatmapMonths"></div>
+            <div class="heatmap-grid" id="statsHeatmapGrid"></div>
+          </div>
         </div>
       </section>
 
@@ -1238,7 +1333,11 @@
     <div class="sheet">
       <span class="sheet-handle"></span>
       <h3 class="sheet-title">Daily Goal</h3>
-      <p class="sheet-subtitle">Time per day that counts as a "hit" for this activity</p>
+      <div class="study-goal-mode" id="studyGoalModeRow" style="display:none">
+        <button class="study-goal-mode-option" id="studyGoalModeSubject" data-mode="subject">Per subject</button>
+        <button class="study-goal-mode-option" id="studyGoalModeOverall" data-mode="overall">Overall</button>
+      </div>
+      <p class="sheet-subtitle" id="statsGoalSubtitle">Time per day that counts as a "hit" for this activity</p>
       <div class="wheel-picker-caption" id="statsGoalCaption">1h 00m</div>
       <div class="wheel-picker" id="statsGoalWheel"></div>
       <div class="goal-chips" id="statsGoalChips">
@@ -1299,14 +1398,20 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.3.0';
+    const APP_VERSION = '2.5.0';
 
     // ============ State ============
     const appState = {
       activities: [],
       currentActivityId: null,
       nextActivityId: 1,
+      // Study group settings (apply to all s# subjects). Flexible: the user toggles
+      // between per-subject goals and one overall combined goal.
+      studyGoalMode: 'overall',          // 'overall' | 'subject'
+      studyOverallGoalMinutes: 120,      // combined daily target when mode = 'overall' (default 2 hr)
+      studySettingsModifiedMs: 0,        // for multi-device merge of these settings (newest wins)
     };
+    const STUDY_GOAL_DEFAULTS = { studyGoalMode: 'overall', studyOverallGoalMinutes: 120 };
 
     function createActivityShell(activityId, activityName) {
       return {
@@ -1321,6 +1426,7 @@
         dailyGoalMinutes: 60,                    // user's daily target in minutes (used for stats)
         lastModifiedMs: Date.now(),              // for multi-device merge: newest activity-level edit wins
         deletedLapIds: [],                       // tombstones: lapIds deleted, so merge won't resurrect them
+        colorTag: null,                          // optional subject color index (study subjects); null = auto by name
       };
     }
 
@@ -1493,6 +1599,7 @@
       sanitized.lastModifiedMs = typeof rawActivity.lastModifiedMs === 'number' ? rawActivity.lastModifiedMs : 0;
       sanitized.deletedLapIds = Array.isArray(rawActivity.deletedLapIds)
         ? rawActivity.deletedLapIds.filter(id => typeof id === 'number') : [];
+      sanitized.colorTag = (typeof rawActivity.colorTag === 'number') ? rawActivity.colorTag : null;
       // Drop any laps that are tombstoned (defensive; merge also enforces this).
       if (sanitized.deletedLapIds.length) {
         const tombstoned = new Set(sanitized.deletedLapIds);
@@ -1506,6 +1613,17 @@
       appState.activities = [createActivityShell(1, 'Activity 01')];
       appState.currentActivityId = 1;
       appState.nextActivityId = 2;
+    }
+
+    // Restore study group settings from a persisted/parsed state object (validated).
+    function restoreStudySettings(source) {
+      if (!source || typeof source !== 'object') return;
+      appState.studyGoalMode = (source.studyGoalMode === 'subject' || source.studyGoalMode === 'overall')
+        ? source.studyGoalMode : STUDY_GOAL_DEFAULTS.studyGoalMode;
+      appState.studyOverallGoalMinutes = (typeof source.studyOverallGoalMinutes === 'number' && source.studyOverallGoalMinutes > 0)
+        ? source.studyOverallGoalMinutes : STUDY_GOAL_DEFAULTS.studyOverallGoalMinutes;
+      appState.studySettingsModifiedMs = (typeof source.studySettingsModifiedMs === 'number')
+        ? source.studySettingsModifiedMs : 0;
     }
 
     async function loadPersistedStateFromStorage() {
@@ -1522,6 +1640,7 @@
               : maxExistingActivityId + 1;
             const currentExists = appState.activities.some(a => a.activityId === parsedV2.currentActivityId);
             appState.currentActivityId = currentExists ? parsedV2.currentActivityId : appState.activities[0].activityId;
+            restoreStudySettings(parsedV2);
             return;
           }
         }
@@ -1727,7 +1846,15 @@
           activeTabElementForScroll = tabButton;
         }
         if (activityEntry.isRunning) tabButton.classList.add('is-running-indicator');
-        tabButton.textContent = activityEntry.activityName;
+        if (activityIsStudy(activityEntry)) {
+          const colorDot = document.createElement('span');
+          colorDot.className = 'subject-color-dot';
+          colorDot.style.background = getSubjectColor(activityEntry);
+          tabButton.appendChild(colorDot);
+          tabButton.appendChild(document.createTextNode(activityDisplayName(activityEntry)));
+        } else {
+          tabButton.textContent = activityDisplayName(activityEntry);
+        }
         tabButton.setAttribute('data-activity-id', activityEntry.activityId.toString());
         activityTabsScroller.appendChild(tabButton);
       }
@@ -1882,6 +2009,54 @@
       renderDaimokuCounter();
     }
 
+    // ============ Study subjects (s# prefix) ============
+    // An activity whose name starts with "s#" (tolerant of spacing/case) is a study
+    // subject. The prefix is stripped for display: "s# maths" -> "Maths". All study
+    // subjects form one group that the combined goal / streak / overview operate on.
+    const STUDY_PREFIX_REGEX = /^\s*s#\s*/i;
+    function activityIsStudy(activity) {
+      return !!(activity && typeof activity.activityName === 'string'
+        && STUDY_PREFIX_REGEX.test(activity.activityName));
+    }
+    function activityDisplayName(activity) {
+      if (!activity || typeof activity.activityName !== 'string') return '';
+      if (activityIsStudy(activity)) {
+        const stripped = activity.activityName.replace(STUDY_PREFIX_REGEX, '').trim();
+        return stripped || 'Subject';
+      }
+      return activity.activityName;
+    }
+    function getStudyActivities() {
+      return appState.activities.filter(activityIsStudy);
+    }
+    function anyStudyActivityExists() {
+      return appState.activities.some(activityIsStudy);
+    }
+    // Subject colors: each study subject gets a distinct color for tabs/overview/charts.
+    // Uses a stored colorTag index if set (user override), else a stable hash of the name.
+    const SUBJECT_COLOR_PALETTE = ['#5E9EFF', '#34C759', '#FF9F0A', '#FF6482', '#BF5AF2', '#5AC8DE', '#FFD60A', '#FF7A45'];
+    function hashStringToIndex(text, modulo) {
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) { hash = (hash * 31 + text.charCodeAt(i)) | 0; }
+      return Math.abs(hash) % modulo;
+    }
+    function getSubjectColorIndex(activity) {
+      if (activity && typeof activity.colorTag === 'number'
+        && activity.colorTag >= 0 && activity.colorTag < SUBJECT_COLOR_PALETTE.length) {
+        return activity.colorTag;
+      }
+      return hashStringToIndex(activityDisplayName(activity).toLowerCase(), SUBJECT_COLOR_PALETTE.length);
+    }
+    function getSubjectColor(activity) {
+      return SUBJECT_COLOR_PALETTE[getSubjectColorIndex(activity)];
+    }
+    // Mark study settings as just-changed (for multi-device newest-wins merge).
+    function stampStudySettings() { appState.studySettingsModifiedMs = Date.now(); }
+    // Combined study minutes logged on a given date across all s# subjects.
+    function getStudyTotalMinutesForDate(dateObject) {
+      return getStudyActivities().reduce((sum, a) => sum + (getMinutesForDate(a, dateObject) || 0), 0);
+    }
+
     // Daimoku counter: when the activity name contains "chant", 1 second = 1 Daimoku.
     // Shows the current session's count (in sync with the displayed timer), hidden otherwise.
     function activityIsChant(activity) {
@@ -1898,25 +2073,32 @@
       daimokuCounter.innerHTML = `${daimokuCount.toLocaleString()} <span class="daimoku-label">Daimoku</span>`;
     }
 
-    // In-app goal awareness: today's logged minutes vs the activity's daily goal.
-    // Reuses the same data the Stats screen uses (getMinutesForDate + dailyGoalMinutes).
+    // In-app goal awareness: today's logged minutes vs the daily goal.
+    // For study subjects in "overall" mode, shows the COMBINED total across all subjects
+    // vs the overall goal; otherwise the current activity's own goal. Reuses stats data.
     function renderGoalNudge() {
       const goalNudge = document.getElementById('goalNudge');
       if (!goalNudge) return;
       const currentActivity = getCurrentActivity();
       if (!currentActivity) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
-      const goalMinutes = currentActivity.dailyGoalMinutes || 0;
-      const todayMinutes = Math.round(getMinutesForDate(currentActivity, new Date()) || 0);
+
+      const studyOverall = activityIsStudy(currentActivity) && appState.studyGoalMode === 'overall';
+      const goalMinutes = studyOverall ? appState.studyOverallGoalMinutes : (currentActivity.dailyGoalMinutes || 0);
+      const todayMinutes = Math.round(studyOverall
+        ? getStudyTotalMinutesForDate(new Date())
+        : (getMinutesForDate(currentActivity, new Date()) || 0));
+      const scopeLabel = studyOverall ? ' (all subjects)' : '';
+
       if (goalMinutes <= 0) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
       if (todayMinutes <= 0) {
-        goalNudge.textContent = `No session yet today · goal ${formatHoursMinutes(goalMinutes)}`;
+        goalNudge.textContent = `No study yet today${scopeLabel} · goal ${formatHoursMinutes(goalMinutes)}`;
         goalNudge.classList.remove('is-met');
       } else if (todayMinutes >= goalMinutes) {
-        goalNudge.textContent = `Goal met today · ${formatHoursMinutes(todayMinutes)} ✓`;
+        goalNudge.textContent = `Goal met today${scopeLabel} · ${formatHoursMinutes(todayMinutes)} ✓`;
         goalNudge.classList.add('is-met');
       } else {
         const remaining = goalMinutes - todayMinutes;
-        goalNudge.textContent = `${formatHoursMinutes(todayMinutes)} of ${formatHoursMinutes(goalMinutes)} today · ${formatHoursMinutes(remaining)} to go`;
+        goalNudge.textContent = `${formatHoursMinutes(todayMinutes)} of ${formatHoursMinutes(goalMinutes)} today${scopeLabel} · ${formatHoursMinutes(remaining)} to go`;
         goalNudge.classList.remove('is-met');
       }
     }
@@ -2074,6 +2256,16 @@
       );
     }
 
+    // Pick the subject color index least used among existing study subjects, so a new
+    // subject gets a visually distinct color rather than colliding by name-hash.
+    function pickNextSubjectColorIndex() {
+      const counts = new Array(SUBJECT_COLOR_PALETTE.length).fill(0);
+      getStudyActivities().forEach(a => { counts[getSubjectColorIndex(a)] += 1; });
+      let bestIndex = 0;
+      for (let i = 1; i < counts.length; i++) { if (counts[i] < counts[bestIndex]) bestIndex = i; }
+      return bestIndex;
+    }
+
     // ============ Actions: activities ============
     function handleAddActivityPress() {
       const newActivityId = appState.nextActivityId++;
@@ -2217,7 +2409,7 @@
       editModalContext.targetLapId = null;
       editModalTitle.textContent = 'Delete Activity';
       editModalMessage.style.display = '';
-      editModalMessage.textContent = `Delete "${currentActivity.activityName}" and all ${currentActivity.laps.length} lap(s)? This cannot be undone.`;
+      editModalMessage.textContent = `Delete "${activityDisplayName(currentActivity)}" and all ${currentActivity.laps.length} lap(s)? This cannot be undone.`;
       editModalInput.style.display = 'none';
       editModalFormatHint.textContent = '';
       editModalSaveButton.textContent = 'Delete';
@@ -2326,7 +2518,12 @@
         }
         const currentActivity = getCurrentActivity();
         if (!currentActivity) { hideEditModal(); return; }
+        const wasStudy = activityIsStudy(currentActivity);
         currentActivity.activityName = trimmedName.substring(0, 50);
+        // If it just became a study subject with no explicit color, give it a distinct one.
+        if (!wasStudy && activityIsStudy(currentActivity) && typeof currentActivity.colorTag !== 'number') {
+          currentActivity.colorTag = pickNextSubjectColorIndex();
+        }
         stampActivityModified(currentActivity);
         persistStateToStorage();
         hideEditModal();
@@ -2526,7 +2723,7 @@
     function renderStatsTopBar() {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
-      document.getElementById('statsActivityPillLabel').textContent = currentActivity.activityName;
+      document.getElementById('statsActivityPillLabel').textContent = activityDisplayName(currentActivity);
     }
 
     function computeCurrentStreak(activity) {
@@ -2541,6 +2738,32 @@
         const m = getMinutesForDate(activity, cursor);
         if (m == null) break;
         if (m >= goalMinutes) streakCount += 1;
+        else break;
+        cursor.setDate(cursor.getDate() - 1);
+        if (streakCount > 365) break;
+      }
+      return streakCount;
+    }
+
+    // Combined study streak: consecutive days the combined total across all subjects
+    // met the overall goal. Today counts only if already met (doesn't break the streak
+    // mid-day). Stops at the earliest day any subject began tracking.
+    function computeCombinedStudyStreak() {
+      const goalMinutes = appState.studyOverallGoalMinutes;
+      if (goalMinutes <= 0) return 0;
+      const studyActivities = getStudyActivities();
+      if (studyActivities.length === 0) return 0;
+      const earliestDates = studyActivities
+        .map(getEarliestTrackingDate).filter(Boolean).map(d => dateAtMidnight(d).getTime());
+      if (earliestDates.length === 0) return 0;
+      const earliestMidnight = Math.min(...earliestDates);
+      let streakCount = 0;
+      const today = new Date();
+      if (getStudyTotalMinutesForDate(today) >= goalMinutes) streakCount += 1;
+      const cursor = new Date(today);
+      cursor.setDate(cursor.getDate() - 1);
+      while (dateAtMidnight(cursor).getTime() >= earliestMidnight) {
+        if (getStudyTotalMinutesForDate(cursor) >= goalMinutes) streakCount += 1;
         else break;
         cursor.setDate(cursor.getDate() - 1);
         if (streakCount > 365) break;
@@ -2579,7 +2802,10 @@
       const currentActivity = getCurrentActivity();
       const container = document.getElementById('statsSummaryCards');
       if (!currentActivity) { container.innerHTML = ''; return; }
-      const streakCount = computeCurrentStreak(currentActivity);
+      // In overall study mode, the streak reflects the combined daily target across subjects.
+      const studyOverall = activityIsStudy(currentActivity) && appState.studyGoalMode === 'overall';
+      const streakCount = studyOverall ? computeCombinedStudyStreak() : computeCurrentStreak(currentActivity);
+      const streakLabel = studyOverall ? 'Study streak' : 'Current streak';
       const weekTotals = computeWeekTotals(currentActivity);
       const hitInfo = computeGoalHitPercent(currentActivity, 30);
       let deltaText = '—', deltaClass = '';
@@ -2595,7 +2821,7 @@
       const weekParts = thisWeekFormatted.split(' ');
       container.innerHTML = `
         <div class="summary-card">
-          <div class="summary-card-label">Current streak</div>
+          <div class="summary-card-label">${streakLabel}</div>
           <div>
             <div class="summary-card-value"><span class="number">${streakCount}</span><span class="unit">${streakCount === 1 ? 'day' : 'days'}</span></div>
             <div class="summary-card-sub">${streakCount === 0 ? 'Hit goal today to start' : 'Keep it going'}</div>
@@ -2852,7 +3078,7 @@
         const isSelected = activityEntry.activityId === appState.currentActivityId;
         return `<button class="activity-list-row ${isSelected ? 'is-selected' : ''}" data-id="${activityEntry.activityId}">
           <span class="activity-list-row-dot"></span>
-          <span class="activity-list-row-name">${activityEntry.activityName}</span>
+          <span class="activity-list-row-name">${activityDisplayName(activityEntry)}</span>
           <span class="activity-list-row-meta">${hits}/30</span>
           <svg class="activity-list-row-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>`;
@@ -2882,7 +3108,124 @@
       });
       renderStatsChart();
       renderStatsCalendar();
+      renderStatsHeatmap();
+      renderStudyOverview();
       document.getElementById('statsFooterGoal').textContent = `${currentActivity.dailyGoalMinutes} min/day`;
+    }
+
+    // All-subjects overview + weekly breakdown (only shown when study subjects exist).
+    function renderStudyOverview() {
+      const section = document.getElementById('studyOverviewSection');
+      if (!section) return;
+      const studyActivities = getStudyActivities();
+      if (studyActivities.length === 0) { section.style.display = 'none'; return; }
+      section.style.display = '';
+
+      const today = new Date();
+      const rows = studyActivities.map(activity => {
+        const todayMin = Math.round(getMinutesForDate(activity, today) || 0);
+        const weekMin = Math.round(computeWeekTotals(activity).thisWeek || 0);
+        return { activity, color: getSubjectColor(activity), name: activityDisplayName(activity), todayMin, weekMin };
+      });
+      const combinedToday = rows.reduce((s, r) => s + r.todayMin, 0);
+      const combinedWeek = rows.reduce((s, r) => s + r.weekMin, 0);
+
+      // Header line: combined today (+ goal if overall mode).
+      const totalEl = document.getElementById('studyOverviewTotal');
+      if (appState.studyGoalMode === 'overall') {
+        totalEl.innerHTML = `Today <strong>${formatHoursMinutes(combinedToday)}</strong> / ${formatHoursMinutes(appState.studyOverallGoalMinutes)}`;
+      } else {
+        totalEl.innerHTML = `Today <strong>${formatHoursMinutes(combinedToday)}</strong>`;
+      }
+
+      // Per-subject rows (sorted by today's time, descending).
+      rows.sort((a, b) => b.todayMin - a.todayMin);
+      const list = document.getElementById('studyOverviewList');
+      list.innerHTML = `<div class="study-overview-head-row"><span></span><span>Subject</span><span>Today</span><span>Week</span></div>`
+        + rows.map(r => `
+          <div class="study-overview-row">
+            <span class="study-overview-dot" style="background:${r.color}"></span>
+            <span class="study-overview-name">${r.name}</span>
+            <span class="study-overview-today">${r.todayMin > 0 ? formatHoursMinutes(r.todayMin) : '—'}</span>
+            <span class="study-overview-week">${r.weekMin > 0 ? formatHoursMinutes(r.weekMin) : '—'}</span>
+          </div>`).join('');
+
+      // Weekly breakdown bar (proportional split across subjects).
+      const bar = document.getElementById('studyBreakdownBar');
+      const legend = document.getElementById('studyBreakdownLegend');
+      if (combinedWeek <= 0) {
+        bar.innerHTML = '';
+        legend.innerHTML = `<span class="study-breakdown-empty">No study logged this week yet.</span>`;
+      } else {
+        const weekRows = rows.filter(r => r.weekMin > 0).sort((a, b) => b.weekMin - a.weekMin);
+        bar.innerHTML = weekRows.map(r =>
+          `<div class="study-breakdown-seg" style="width:${(r.weekMin / combinedWeek) * 100}%;background:${r.color}" title="${r.name}: ${formatHoursMinutes(r.weekMin)}"></div>`
+        ).join('');
+        legend.innerHTML = weekRows.map(r => {
+          const pct = Math.round((r.weekMin / combinedWeek) * 100);
+          return `<span class="study-breakdown-legend-item"><span class="study-breakdown-legend-dot" style="background:${r.color}"></span>${r.name} ${pct}%</span>`;
+        }).join('');
+      }
+    }
+
+    // Year heat-map: 53 week-columns × 7 day-rows ending today (GitHub-style).
+    // Intensity buckets by minutes vs the activity's daily goal. Reuses getMinutesForDate.
+    function heatBucketForMinutes(minutes, goalMinutes) {
+      if (minutes == null) return 'heat-empty';
+      if (minutes <= 0) return 'heat-0';
+      const ratio = goalMinutes > 0 ? minutes / goalMinutes : 1;
+      if (ratio < 0.5) return 'heat-1';
+      if (ratio < 1) return 'heat-2';
+      if (ratio < 1.5) return 'heat-3';
+      return 'heat-4';
+    }
+    function renderStatsHeatmap() {
+      const grid = document.getElementById('statsHeatmapGrid');
+      const monthsRow = document.getElementById('statsHeatmapMonths');
+      if (!grid || !monthsRow) return;
+      const currentActivity = getCurrentActivity();
+      const goalMinutes = currentActivity ? currentActivity.dailyGoalMinutes : 60;
+      const today = dateAtMidnight(new Date());
+      // Start 52 weeks back, then rewind to the Sunday of that week so columns align.
+      const start = new Date(today);
+      start.setDate(start.getDate() - 52 * 7);
+      start.setDate(start.getDate() - start.getDay());
+      const monthNamesShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      let cellsHtml = '';
+      const cursor = new Date(start);
+      // 53 columns to safely cover the span
+      for (let week = 0; week < 53; week++) {
+        for (let day = 0; day < 7; day++) {
+          if (cursor > today) {
+            cellsHtml += `<div class="heatmap-day heat-empty"></div>`;
+          } else {
+            const minutes = currentActivity ? getMinutesForDate(currentActivity, cursor) : null;
+            const bucket = heatBucketForMinutes(minutes, goalMinutes);
+            const isToday = isSameLocalDate(cursor, today);
+            const titleMin = minutes == null ? 'no data' : `${Math.round(minutes)} min`;
+            cellsHtml += `<div class="heatmap-day ${bucket}${isToday ? ' heatmap-day-today' : ''}" title="${formatDateKey(cursor)} · ${titleMin}"></div>`;
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
+      grid.innerHTML = cellsHtml;
+      monthsRow.innerHTML = buildHeatmapMonthLabels(start, today, monthNamesShort);
+    }
+    // Month labels spaced to sit above the column where each month starts.
+    function buildHeatmapMonthLabels(start, today, monthNamesShort) {
+      let html = '';
+      let lastMonth = -1;
+      const cursor = new Date(start);
+      const COL_WIDTH = 14; // 11px cell + 3px gap
+      for (let week = 0; week < 53; week++) {
+        const m = cursor.getMonth();
+        if (m !== lastMonth && cursor <= today) {
+          html += `<div class="heatmap-month-label" style="min-width:${COL_WIDTH}px;flex:0 0 auto;width:0;position:relative;left:${week * COL_WIDTH}px">${monthNamesShort[m]}</div>`;
+          lastMonth = m;
+        }
+        cursor.setDate(cursor.getDate() + 7);
+      }
+      return html;
     }
 
     // ----- Stats event wiring -----
@@ -2936,6 +3279,7 @@
     });
 
     let statsGoalWheelController = null;
+    let studyGoalSheetMode = 'subject'; // the mode currently shown in the open goal sheet
     function buildStatsGoalCaption(values) {
       const hours = values.hours || 0;
       const minutes = values.minutes || 0;
@@ -2948,6 +3292,31 @@
     }
     function wheelValuesToGoalMinutes(values) {
       return (values.hours || 0) * 60 + (values.minutes || 0);
+    }
+    // The goal figure the sheet should show for the current mode/activity.
+    function goalSheetCurrentMinutes() {
+      const currentActivity = getCurrentActivity();
+      if (studyGoalSheetMode === 'overall') return appState.studyOverallGoalMinutes;
+      return currentActivity ? currentActivity.dailyGoalMinutes : 60;
+    }
+    // Reflect the toggle selection + subtitle + wheel for the active study goal mode.
+    function applyStudyGoalSheetMode() {
+      const subjectBtn = document.getElementById('studyGoalModeSubject');
+      const overallBtn = document.getElementById('studyGoalModeOverall');
+      subjectBtn.classList.toggle('is-selected', studyGoalSheetMode === 'subject');
+      overallBtn.classList.toggle('is-selected', studyGoalSheetMode === 'overall');
+      const subtitle = document.getElementById('statsGoalSubtitle');
+      subtitle.textContent = studyGoalSheetMode === 'overall'
+        ? 'Combined time per day across all subjects'
+        : 'Time per day for this subject';
+      const minutes = goalSheetCurrentMinutes();
+      if (statsGoalWheelController) {
+        const values = goalMinutesToWheelValues(minutes);
+        statsGoalWheelController.setValues(values);
+        document.getElementById('statsGoalCaption').textContent = buildStatsGoalCaption(values);
+        requestAnimationFrame(() => statsGoalWheelController.reapply());
+      }
+      syncStatsGoalChips(minutes);
     }
 
     document.getElementById('statsFooterEditButton').addEventListener('click', () => {
@@ -2966,12 +3335,36 @@
           syncStatsGoalChips(wheelValuesToGoalMinutes(values));
         }
       );
-      const initialValues = goalMinutesToWheelValues(currentActivity.dailyGoalMinutes);
+      // Study subjects get the per-subject / overall toggle; others use their own goal.
+      const modeRow = document.getElementById('studyGoalModeRow');
+      const studyContext = activityIsStudy(currentActivity) || anyStudyActivityExists();
+      if (studyContext) {
+        modeRow.style.display = '';
+        studyGoalSheetMode = appState.studyGoalMode;
+      } else {
+        modeRow.style.display = 'none';
+        studyGoalSheetMode = 'subject';
+      }
+      const initialMinutes = goalSheetCurrentMinutes();
+      const initialValues = goalMinutesToWheelValues(initialMinutes);
       statsGoalWheelController.setValues(initialValues);
       statsGoalCaption.textContent = buildStatsGoalCaption(initialValues);
-      syncStatsGoalChips(currentActivity.dailyGoalMinutes);
+      if (studyContext) {
+        document.getElementById('statsGoalSubtitle').textContent = studyGoalSheetMode === 'overall'
+          ? 'Combined time per day across all subjects' : 'Time per day for this subject';
+      } else {
+        document.getElementById('statsGoalSubtitle').textContent = 'Time per day that counts as a "hit" for this activity';
+      }
+      syncStatsGoalChips(initialMinutes);
       showStatsSheet('statsGoalSheetBackdrop');
       requestAnimationFrame(() => { if (statsGoalWheelController) statsGoalWheelController.reapply(); });
+    });
+    // Mode toggle inside the goal sheet.
+    document.getElementById('studyGoalModeRow').addEventListener('click', (clickEvent) => {
+      const option = clickEvent.target.closest('.study-goal-mode-option');
+      if (!option) return;
+      studyGoalSheetMode = option.getAttribute('data-mode');
+      applyStudyGoalSheetMode();
     });
     function syncStatsGoalChips(value) {
       document.querySelectorAll('#statsGoalChips .goal-chip').forEach(chip => {
@@ -2994,10 +3387,23 @@
       const currentActivity = getCurrentActivity();
       const totalMinutes = statsGoalWheelController ? wheelValuesToGoalMinutes(statsGoalWheelController.getValues()) : 0;
       if (totalMinutes > 0 && totalMinutes <= 720 && currentActivity) {
-        currentActivity.dailyGoalMinutes = totalMinutes;
-        stampActivityModified(currentActivity);
+        const studyContext = activityIsStudy(currentActivity) || anyStudyActivityExists();
+        if (studyContext && studyGoalSheetMode === 'overall') {
+          appState.studyOverallGoalMinutes = totalMinutes;
+          appState.studyGoalMode = 'overall';
+          stampStudySettings();
+        } else if (studyContext && studyGoalSheetMode === 'subject') {
+          currentActivity.dailyGoalMinutes = totalMinutes;
+          appState.studyGoalMode = 'subject';
+          stampStudySettings();
+          stampActivityModified(currentActivity);
+        } else {
+          currentActivity.dailyGoalMinutes = totalMinutes;
+          stampActivityModified(currentActivity);
+        }
         persistStateToStorage();
         renderStatsAll();
+        renderGoalNudge();
       }
       hideStatsSheet('statsGoalSheetBackdrop');
     });
@@ -3018,6 +3424,7 @@
       if (currentActivity && currentActivity.isRunning) {
         renderTimerDisplay();
         updateLiveLapDurationText();
+        if (activityIsChant(currentActivity)) renderDaimokuCounter();
       }
       requestAnimationFrame(animationFrameTick);
     }
@@ -3210,7 +3617,23 @@
         mergedCurrentId = mergedActivities[0] ? mergedActivities[0].activityId : null;
       }
 
-      return { activities: mergedActivities, currentActivityId: mergedCurrentId, nextActivityId: mergedNextActivityId };
+      // Study group settings: take whichever side was modified most recently.
+      const remoteSettingsNewer = (remoteState.studySettingsModifiedMs || 0) > (localState.studySettingsModifiedMs || 0);
+      const settingsSource = remoteSettingsNewer ? remoteState : localState;
+      const mergedStudyGoalMode = (settingsSource.studyGoalMode === 'subject' || settingsSource.studyGoalMode === 'overall')
+        ? settingsSource.studyGoalMode : STUDY_GOAL_DEFAULTS.studyGoalMode;
+      const mergedStudyOverallGoalMinutes = (typeof settingsSource.studyOverallGoalMinutes === 'number' && settingsSource.studyOverallGoalMinutes > 0)
+        ? settingsSource.studyOverallGoalMinutes : STUDY_GOAL_DEFAULTS.studyOverallGoalMinutes;
+      const mergedStudySettingsModifiedMs = Math.max(localState.studySettingsModifiedMs || 0, remoteState.studySettingsModifiedMs || 0);
+
+      return {
+        activities: mergedActivities,
+        currentActivityId: mergedCurrentId,
+        nextActivityId: mergedNextActivityId,
+        studyGoalMode: mergedStudyGoalMode,
+        studyOverallGoalMinutes: mergedStudyOverallGoalMinutes,
+        studySettingsModifiedMs: mergedStudySettingsModifiedMs,
+      };
     }
 
     // Merge a remote state object into the running app state, then re-render. Used by
@@ -3235,6 +3658,7 @@
       appState.activities = candidate.activities;
       appState.currentActivityId = candidate.currentActivityId;
       appState.nextActivityId = candidate.nextActivityId;
+      restoreStudySettings(candidate);
       renderAll();
       if (statsState.currentView === 'stats') renderStatsAll();
       return true;
