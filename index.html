@@ -1043,6 +1043,34 @@
       font-family: var(--font-ui); font-size: 11px; color: var(--color-text-dim);
       letter-spacing: 0.04em;
     }
+    .diag-toggle {
+      display: block; margin: 4px auto 0; background: none; border: none; cursor: pointer;
+      font-family: var(--font-ui); font-size: 12px; color: var(--color-accent-edit); padding: 6px;
+    }
+    .diag-panel {
+      margin-top: 10px; padding: 12px; border-radius: 12px;
+      background: var(--color-background); border: 0.5px solid var(--color-border);
+    }
+    .diag-summary {
+      font-family: var(--font-mono, monospace); font-size: 11px; line-height: 1.6;
+      color: var(--color-text-muted); margin-bottom: 10px; white-space: pre-wrap;
+    }
+    .diag-summary .ok { color: var(--color-accent-start-text); }
+    .diag-summary .bad { color: var(--color-danger, #ff6482); }
+    .diag-log-head {
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--font-ui); font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--color-text-dim); margin-bottom: 6px;
+    }
+    .diag-copy { background: none; border: 0.5px solid var(--color-border); border-radius: 6px;
+      color: var(--color-text-muted); font-family: var(--font-ui); font-size: 11px; padding: 2px 8px; cursor: pointer; }
+    .diag-log {
+      max-height: 180px; overflow-y: auto;
+      font-family: var(--font-mono, monospace); font-size: 10.5px; line-height: 1.55;
+      color: var(--color-text-muted); white-space: pre-wrap; word-break: break-word;
+    }
+    .diag-log .err { color: var(--color-danger, #ff6482); }
+    .diag-log .evt { color: var(--color-text-primary); }
 
     .day-detail-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
     .day-detail-date { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: -0.02em; }
@@ -1318,6 +1346,15 @@
         </div>
       </div>
       <p class="sheet-subtitle" id="accountSyncHint" style="margin-top:14px;font-size:12px;"></p>
+      <button class="diag-toggle" id="diagToggle">Show sync diagnostics</button>
+      <div class="diag-panel" id="diagPanel" style="display:none">
+        <div class="diag-summary" id="diagSummary"></div>
+        <div class="diag-log-head">
+          <span>Event log</span>
+          <button class="diag-copy" id="diagCopyButton">Copy</button>
+        </div>
+        <div class="diag-log" id="diagLog"></div>
+      </div>
       <div class="theme-toggle-section">
         <span class="theme-toggle-label">Theme</span>
         <div class="theme-toggle-options">
@@ -1398,7 +1435,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.5.0';
+    const APP_VERSION = '2.5.1';
 
     // ============ State ============
     const appState = {
@@ -3450,6 +3487,18 @@
     // are retried; localStorage always holds the base copy regardless.
     const SYNC_DEBOUNCE_MS = 800;
     const SYNC_RETRY_MS = 5000;
+    const SYNC_WRITE_TIMEOUT_MS = 15000;   // a hung network write resolves to error after this
+
+    // On-screen debug log: every sync step is recorded here (and to console) so the
+    // Account-sheet "diagnostics" panel can show exactly what's happening / where it stalls.
+    const syncDebugLog = [];
+    function logSync(message, isError) {
+      const stamp = new Date().toLocaleTimeString();
+      syncDebugLog.push({ stamp, message, isError: !!isError });
+      if (syncDebugLog.length > 60) syncDebugLog.shift();
+      try { (isError ? console.error : console.log)('[sync] ' + message); } catch (e) {}
+      renderSyncDiagnostics();
+    }
 
     const cloudSync = {
       _writeTimer: null,
@@ -3473,26 +3522,41 @@
       },
 
       async _flush() {
-        if (!this._pendingSerialized || !supabaseClient || !currentUser) return;
-        if (this._inFlight) return; // a write is already running; latest pending will follow
+        // Resolve any stuck "syncing" state instead of returning silently.
+        if (!supabaseClient || !currentUser) {
+          if (this.status === 'syncing') this._setStatus(currentUser ? 'error' : 'idle');
+          if (!supabaseClient) logSync('flush skipped: Supabase client not ready', true);
+          return;
+        }
+        if (!this._pendingSerialized) {
+          if (this.status === 'syncing') this._setStatus('synced'); // nothing pending = up to date
+          return;
+        }
+        if (this._inFlight) { logSync('flush skipped: a write is already in flight'); return; }
         const serialized = this._pendingSerialized;
         this._inFlight = true;
         this._setStatus('syncing');
+        logSync(`writing ${serialized.length} chars to cloud…`);
         try {
           const stateObject = JSON.parse(serialized);
-          const { error } = await supabaseClient.from('user_state').upsert({
-            user_id: currentUser.id,
-            state: stateObject,
-            updated_at: new Date().toISOString(),
-          });
-          if (error) throw error;
-          // Only clear pending if nothing newer arrived while we were writing.
+          // Race the upsert against a timeout so a hung request can't stick on "Syncing…".
+          const result = await Promise.race([
+            supabaseClient.from('user_state').upsert({
+              user_id: currentUser.id,
+              state: stateObject,
+              updated_at: new Date().toISOString(),
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('write timeout (' + (SYNC_WRITE_TIMEOUT_MS / 1000) + 's) — no response from Supabase')), SYNC_WRITE_TIMEOUT_MS)),
+          ]);
+          if (result && result.error) throw result.error;
           if (this._pendingSerialized === serialized) this._pendingSerialized = null;
           this.lastSyncedAtMs = Date.now();
           this._setStatus('synced');
+          logSync('write OK ✓');
         } catch (cloudWriteError) {
-          // Keep _pendingSerialized; schedule a retry. localStorage already has it.
+          const msg = (cloudWriteError && (cloudWriteError.message || cloudWriteError.error_description || cloudWriteError.hint)) || String(cloudWriteError);
           this._setStatus(navigator && navigator.onLine === false ? 'offline' : 'error');
+          logSync('write FAILED: ' + msg, true);
           this._scheduleRetry();
         } finally {
           this._inFlight = false;
@@ -3519,13 +3583,19 @@
 
       // Fetch the cloud copy as a parsed object (or null).
       async pull() {
-        if (!supabaseClient || !currentUser) return null;
+        if (!supabaseClient || !currentUser) { logSync('pull skipped: client/user not ready', true); return null; }
+        logSync('pulling cloud copy…');
         try {
           const { data, error } = await supabaseClient
             .from('user_state').select('state').eq('user_id', currentUser.id).maybeSingle();
-          if (error || !data || !data.state) return null;
+          if (error) { logSync('pull error: ' + (error.message || error), true); return null; }
+          if (!data || !data.state) { logSync('pull: no cloud copy yet (empty)'); return null; }
+          logSync('pull OK (cloud copy received)');
           return data.state;
-        } catch (cloudReadError) { return null; }
+        } catch (cloudReadError) {
+          logSync('pull exception: ' + ((cloudReadError && cloudReadError.message) || cloudReadError), true);
+          return null;
+        }
       },
 
       _setStatus(nextStatus) {
@@ -3674,11 +3744,11 @@
           (payload) => {
             if (payload && payload.new && payload.new.state) {
               const didChange = mergeRemoteIntoLocal(payload.new.state);
-              // Reconcile the merged result back so all devices converge.
+              logSync('realtime update received' + (didChange ? ' → merged' : ' (no change)'));
               if (didChange) persistStateToStorage();
             }
           })
-        .subscribe();
+        .subscribe((status) => { logSync('realtime channel: ' + status); });
     }
 
     // On sign-in: pull cloud, merge with local, write the merged result back, subscribe.
@@ -3707,13 +3777,24 @@
     // Manual "Sync now": flush pending writes, pull remote, merge, push merged back.
     // Safe regardless of direction — read → merge → write → apply (no clobber).
     async function syncNow() {
-      if (!supabaseClient || !currentUser) return;
+      if (!supabaseClient || !currentUser) { logSync('Sync now ignored: not signed in / client not ready', true); return; }
+      logSync('— Sync now pressed —');
       cloudSync._setStatus('syncing');
-      await cloudSync.flushNow();                 // push anything pending first
-      const remoteState = await cloudSync.pull(); // then pull latest
-      if (remoteState) mergeRemoteIntoLocal(remoteState);
-      cloudSync._pendingSerialized = JSON.stringify(appState);
-      await cloudSync.flushNow();                 // write merged result back
+      try {
+        await cloudSync.flushNow();                 // push anything pending first
+        const remoteState = await cloudSync.pull(); // then pull latest
+        if (remoteState) {
+          const changed = mergeRemoteIntoLocal(remoteState);
+          logSync('merge applied: ' + (changed ? 'state updated from cloud' : 'no change'));
+        }
+        cloudSync._pendingSerialized = JSON.stringify(appState);
+        await cloudSync.flushNow();                 // write merged result back
+        if (cloudSync.status === 'syncing') cloudSync._setStatus('synced');
+        logSync('Sync now complete');
+      } catch (e) {
+        cloudSync._setStatus('error');
+        logSync('Sync now error: ' + ((e && e.message) || e), true);
+      }
     }
 
     // ---- Account UI ----
@@ -3774,6 +3855,33 @@
       }
     }
 
+    // ---- Sync diagnostics panel (Account sheet) ----
+    let diagPanelOpen = false;
+    function renderSyncDiagnostics() {
+      const panel = document.getElementById('diagPanel');
+      const summary = document.getElementById('diagSummary');
+      const logEl = document.getElementById('diagLog');
+      if (!panel || !summary || !logEl) return;
+      if (!diagPanelOpen) return; // only do DOM work while the panel is visible
+      const yn = (cond) => cond ? '<span class="ok">yes</span>' : '<span class="bad">no</span>';
+      const sdkLoaded = (typeof window !== 'undefined' && !!window.supabase);
+      const lastSynced = cloudSync.lastSyncedAtMs ? new Date(cloudSync.lastSyncedAtMs).toLocaleTimeString() : '—';
+      const pendingBytes = cloudSync._pendingSerialized ? cloudSync._pendingSerialized.length : 0;
+      summary.innerHTML =
+        `SDK loaded: ${yn(sdkLoaded)}   client ready: ${yn(!!supabaseClient)}\n`
+        + `signed in: ${yn(!!currentUser)} ${currentUser ? '(' + (currentUser.email || currentUser.id) + ')' : ''}\n`
+        + `online: ${yn(typeof navigator === 'undefined' || navigator.onLine !== false)}   status: ${cloudSync.status}\n`
+        + `pending write: ${pendingBytes ? pendingBytes + ' chars' : 'none'}   in-flight: ${yn(cloudSync._inFlight)}\n`
+        + `realtime: ${realtimeChannel ? 'subscribed' : 'not subscribed'}   last synced: ${lastSynced}`;
+      logEl.innerHTML = syncDebugLog.length
+        ? syncDebugLog.map(e => `<div class="${e.isError ? 'err' : ''}">${e.stamp} ${escapeForLog(e.message)}</div>`).join('')
+        : '<div>No events yet.</div>';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function escapeForLog(text) {
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     function updateAccountUi() {
       if (!SUPABASE_CONFIGURED) {
         accountSheetStatus.textContent = 'Cloud sync isn’t set up yet. The app is saving locally on this device.';
@@ -3798,7 +3906,25 @@
     accountButton.addEventListener('click', () => {
       updateAccountUi();
       updateSyncStatusUi();
+      renderSyncDiagnostics();
       showStatsSheet('accountSheetBackdrop');
+    });
+    document.getElementById('diagToggle').addEventListener('click', () => {
+      diagPanelOpen = !diagPanelOpen;
+      const panel = document.getElementById('diagPanel');
+      panel.style.display = diagPanelOpen ? '' : 'none';
+      document.getElementById('diagToggle').textContent = diagPanelOpen ? 'Hide sync diagnostics' : 'Show sync diagnostics';
+      renderSyncDiagnostics();
+    });
+    document.getElementById('diagCopyButton').addEventListener('click', () => {
+      const text = syncDebugLog.map(e => `${e.stamp} ${e.isError ? '[ERR] ' : ''}${e.message}`).join('\n');
+      const copyBtn = document.getElementById('diagCopyButton');
+      const done = () => { copyBtn.textContent = 'Copied'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => { copyBtn.textContent = 'Copy failed'; });
+      } else {
+        done();
+      }
     });
     document.getElementById('accountCloseButton').addEventListener('click', () => hideStatsSheet('accountSheetBackdrop'));
     if (accountSyncNowButton) {
@@ -3820,12 +3946,16 @@
     // Bootstraps the Supabase client + existing session (if any). Safe no-op when
     // unconfigured or when the SDK failed to load.
     async function initSupabase() {
-      if (!SUPABASE_CONFIGURED || typeof window === 'undefined' || !window.supabase) {
+      if (!SUPABASE_CONFIGURED) { logSync('init: Supabase not configured', true); updateAccountUi(); return; }
+      if (typeof window === 'undefined' || !window.supabase) {
+        logSync('init: Supabase SDK failed to load (window.supabase missing) — network may be blocking the CDN', true);
         updateAccountUi();
         return;
       }
+      logSync('init: SDK loaded, creating client');
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        logSync('auth event: ' + event + (session && session.user ? ' (signed in)' : ' (no session)'));
         if (session && session.user) {
           if (!currentUser || currentUser.id !== session.user.id) {
             await activateCloudForUser(session.user);
@@ -3834,10 +3964,17 @@
           deactivateCloud();
         }
       });
-      const { data } = await supabaseClient.auth.getSession();
-      if (data && data.session && data.session.user) {
-        await activateCloudForUser(data.session.user);
-      } else {
+      try {
+        const { data } = await supabaseClient.auth.getSession();
+        if (data && data.session && data.session.user) {
+          logSync('existing session found: ' + (data.session.user.email || data.session.user.id));
+          await activateCloudForUser(data.session.user);
+        } else {
+          logSync('no existing session');
+          updateAccountUi();
+        }
+      } catch (e) {
+        logSync('getSession error: ' + ((e && e.message) || e), true);
         updateAccountUi();
       }
     }
