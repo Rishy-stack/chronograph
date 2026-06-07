@@ -1435,7 +1435,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.5.1';
+    const APP_VERSION = '2.5.2';
 
     // ============ State ============
     const appState = {
@@ -3766,12 +3766,20 @@
     }
 
     function deactivateCloud() {
-      if (realtimeChannel && supabaseClient) { supabaseClient.removeChannel(realtimeChannel); }
+      if (realtimeChannel && supabaseClient) { try { supabaseClient.removeChannel(realtimeChannel); } catch (e) {} }
       realtimeChannel = null;
       currentUser = null;
+      // Cancel any queued/pending cloud writes so nothing keeps trying after sign-out.
+      if (cloudSync._writeTimer) { clearTimeout(cloudSync._writeTimer); cloudSync._writeTimer = null; }
+      if (cloudSync._retryTimer) { clearTimeout(cloudSync._retryTimer); cloudSync._retryTimer = null; }
+      cloudSync._pendingSerialized = null;
+      cloudSync._inFlight = false;
       cloudSync.status = 'idle';
       cloudSync.lastSyncedAtMs = null;
+      logSync('cloud deactivated (signed out)');
       updateAccountUi();
+      updateSyncStatusUi();
+      renderSyncDiagnostics();
     }
 
     // Manual "Sync now": flush pending writes, pull remote, merge, push merged back.
@@ -3939,7 +3947,22 @@
       // Page redirects to Google, returns, onAuthStateChange handles the rest.
     });
     document.getElementById('accountSignOutButton').addEventListener('click', async () => {
-      if (supabaseClient) await supabaseClient.auth.signOut();
+      logSync('— Sign out pressed —');
+      // Clear the session locally (scope:'local' = no network revoke, so it can't hang on
+      // a flaky connection). Race a timeout, then force-clear UI/state regardless of outcome.
+      try {
+        if (supabaseClient) {
+          await Promise.race([
+            supabaseClient.auth.signOut({ scope: 'local' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('signOut timeout (8s)')), 8000)),
+          ]);
+          logSync('signOut call completed');
+        }
+      } catch (signOutError) {
+        logSync('signOut error (clearing locally anyway): ' + ((signOutError && signOutError.message) || signOutError), true);
+      }
+      // Always end up signed out on this device, even if the network call failed.
+      deactivateCloud();
       hideStatsSheet('accountSheetBackdrop');
     });
 
