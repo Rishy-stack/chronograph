@@ -77,10 +77,26 @@
       padding-top: var(--safe-top);
       padding-bottom: var(--safe-bottom);
       background: var(--color-background);
-      /* Keep a phone-like column on wide screens so fonts/layout never stretch. */
+      /* Phone-first: a phone-width column so fonts/layout never stretch.
+         On larger screens it widens responsively (see media queries below). */
       width: 100%;
       max-width: 480px;
       margin: 0 auto;
+    }
+
+    /* === Responsive desktop width ===
+       Phones keep the 480px column. Tablets/laptops get a wider, more present
+       layout (single column, so all scroll/flow behavior is preserved), with a
+       larger timer and the Start/Lap buttons kept a sensible distance apart.
+       Stats stays a centered, readable column rather than stretching wide. */
+    @media (min-width: 768px) {
+      body { max-width: 700px; }
+      .timer-display-value { font-size: 104px; }
+      .controls-section { max-width: 480px; margin-left: auto; margin-right: auto; width: 100%; }
+      .stats-view { max-width: 600px; margin-left: auto; margin-right: auto; width: 100%; }
+    }
+    @media (min-width: 1280px) {
+      body { max-width: 820px; }
     }
 
     /* === Activity tabs === */
@@ -123,13 +139,25 @@
     .activity-tab-button.is-running-indicator::before {
       content: '';
       display: inline-block;
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--color-accent-start-text);
+      width: 7px; height: 7px; border-radius: 50%;
+      /* Hollow ring + pulse = clearly a "live/running" marker, distinct from the
+         solid subject color dot sitting next to it. */
+      background: transparent;
+      border: 1.5px solid var(--color-accent-start-text);
+      box-sizing: border-box;
       margin-right: 8px;
       vertical-align: middle;
+      animation: runningDotPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes runningDotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.78); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .activity-tab-button.is-running-indicator::before { animation: none; }
     }
     .activity-tab-button.is-active-tab.is-running-indicator::before {
-      background: #ffffff;
+      border-color: #ffffff;
     }
 
     .activity-tab-add-button {
@@ -552,19 +580,30 @@
       display: inline-block; width: 7px; height: 7px; border-radius: 50%;
       margin-right: 6px; vertical-align: middle;
     }
+    .study-goal-mode-wrap { margin: 4px 0 12px; }
+    .study-goal-mode-label {
+      text-align: center; font-family: var(--font-ui); font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-dim);
+      margin-bottom: 6px;
+    }
     .study-goal-mode {
-      display: flex; gap: 4px; margin: 4px auto 12px; padding: 3px;
+      display: flex; gap: 4px; margin: 0 auto; padding: 3px;
       background: var(--color-background); border-radius: 10px; width: fit-content;
     }
     .study-goal-mode-option {
       border: none; background: transparent; cursor: pointer;
-      font-family: var(--font-ui); font-size: 13px; color: var(--color-text-muted);
-      padding: 6px 16px; border-radius: 8px; transition: background 0.15s, color 0.15s;
+      font-family: var(--font-ui); font-size: 13px; font-weight: 500; color: var(--color-text-muted);
+      padding: 7px 18px; border-radius: 8px; transition: background 0.15s, color 0.15s;
     }
+    /* Filled accent so the active mode is unmistakable (matches the app's blue "active" cue). */
     .study-goal-mode-option.is-selected {
-      background: var(--color-surface); color: var(--color-text-primary);
-      box-shadow: var(--button-shadow);
+      background: var(--color-accent-active-tab); color: #ffffff;
     }
+    .goal-explainer {
+      text-align: center; margin: 12px auto 0; max-width: 300px;
+      font-family: var(--font-ui); font-size: 12.5px; line-height: 1.5; color: var(--color-text-muted);
+    }
+    .goal-explainer .hit-check { color: var(--color-accent-start-text); font-weight: 600; }
     .study-overview-total { font-family: var(--font-ui); font-size: 13px; color: var(--color-text-muted); }
     .study-overview-total strong { color: var(--color-text-primary); font-weight: 600; }
     .study-overview-list { display: flex; flex-direction: column; gap: 2px; }
@@ -1369,10 +1408,13 @@
   <div class="sheet-backdrop" id="statsGoalSheetBackdrop">
     <div class="sheet">
       <span class="sheet-handle"></span>
-      <h3 class="sheet-title">Daily Goal</h3>
-      <div class="study-goal-mode" id="studyGoalModeRow" style="display:none">
-        <button class="study-goal-mode-option" id="studyGoalModeSubject" data-mode="subject">Per subject</button>
-        <button class="study-goal-mode-option" id="studyGoalModeOverall" data-mode="overall">Overall</button>
+      <h3 class="sheet-title" id="statsGoalTitle">Daily Goal</h3>
+      <div class="study-goal-mode-wrap" id="studyGoalModeRow" style="display:none">
+        <div class="study-goal-mode-label">Set goal for</div>
+        <div class="study-goal-mode">
+          <button class="study-goal-mode-option" id="studyGoalModeSubject" data-mode="subject">This subject</button>
+          <button class="study-goal-mode-option" id="studyGoalModeOverall" data-mode="overall">All subjects</button>
+        </div>
       </div>
       <p class="sheet-subtitle" id="statsGoalSubtitle">Time per day that counts as a "hit" for this activity</p>
       <div class="wheel-picker-caption" id="statsGoalCaption">1h 00m</div>
@@ -1384,6 +1426,7 @@
         <button class="goal-chip" data-mins="90">1h 30m</button>
         <button class="goal-chip" data-mins="120">2h</button>
       </div>
+      <p class="goal-explainer" id="statsGoalExplainer"></p>
       <div class="sheet-actions">
         <button class="sheet-button cancel" id="statsGoalCancelButton">Cancel</button>
         <button class="sheet-button save" id="statsGoalSaveButton">Save</button>
@@ -1435,7 +1478,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.5.3';
+    const APP_VERSION = '2.6.0';
 
     // ============ State ============
     const appState = {
@@ -1447,6 +1490,7 @@
       studyGoalMode: 'overall',          // 'overall' | 'subject'
       studyOverallGoalMinutes: 120,      // combined daily target when mode = 'overall' (default 2 hr)
       studySettingsModifiedMs: 0,        // for multi-device merge of these settings (newest wins)
+      ownerUserId: null,                 // which signed-in user this local data belongs to (account isolation)
     };
     const STUDY_GOAL_DEFAULTS = { studyGoalMode: 'overall', studyOverallGoalMinutes: 120 };
 
@@ -1661,6 +1705,7 @@
         ? source.studyOverallGoalMinutes : STUDY_GOAL_DEFAULTS.studyOverallGoalMinutes;
       appState.studySettingsModifiedMs = (typeof source.studySettingsModifiedMs === 'number')
         ? source.studySettingsModifiedMs : 0;
+      if (typeof source.ownerUserId === 'string') appState.ownerUserId = source.ownerUserId;
     }
 
     async function loadPersistedStateFromStorage() {
@@ -2125,10 +2170,12 @@
         ? getStudyTotalMinutesForDate(new Date())
         : (getMinutesForDate(currentActivity, new Date()) || 0));
       const scopeLabel = studyOverall ? ' (all subjects)' : '';
+      // "study" only for study subjects; "session" for everything else (e.g. chanting).
+      const activityNoun = activityIsStudy(currentActivity) ? 'study' : 'session';
 
       if (goalMinutes <= 0) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
       if (todayMinutes <= 0) {
-        goalNudge.textContent = `No study yet today${scopeLabel} · goal ${formatHoursMinutes(goalMinutes)}`;
+        goalNudge.textContent = `No ${activityNoun} yet today${scopeLabel} · goal ${formatHoursMinutes(goalMinutes)}`;
         goalNudge.classList.remove('is-met');
       } else if (todayMinutes >= goalMinutes) {
         goalNudge.textContent = `Goal met today${scopeLabel} · ${formatHoursMinutes(todayMinutes)} ✓`;
@@ -3336,16 +3383,42 @@
       if (studyGoalSheetMode === 'overall') return appState.studyOverallGoalMinutes;
       return currentActivity ? currentActivity.dailyGoalMinutes : 60;
     }
-    // Reflect the toggle selection + subtitle + wheel for the active study goal mode.
+    // Sets the goal sheet's title, subtitle, and example explainer for the current mode,
+    // current subject, and the currently-dialed minutes (so it updates live as you spin).
+    function updateGoalSheetCopy(minutes) {
+      const titleEl = document.getElementById('statsGoalTitle');
+      const subtitleEl = document.getElementById('statsGoalSubtitle');
+      const explainerEl = document.getElementById('statsGoalExplainer');
+      if (!titleEl || !subtitleEl || !explainerEl) return;
+      const currentActivity = getCurrentActivity();
+      const studyContext = !!currentActivity && (activityIsStudy(currentActivity) || anyStudyActivityExists());
+      const timeText = formatHoursMinutes(Math.max(0, minutes));
+      if (!studyContext) {
+        const name = currentActivity ? activityDisplayName(currentActivity) : 'this activity';
+        titleEl.textContent = 'Daily Goal';
+        subtitleEl.textContent = `Time per day that counts as a hit for ${name}.`;
+        explainerEl.innerHTML = `Reach ${timeText} in a day to hit your goal.`;
+        return;
+      }
+      if (studyGoalSheetMode === 'overall') {
+        const half = formatHoursMinutes(Math.max(1, Math.round(minutes / 2)));
+        titleEl.textContent = 'Daily Goal · All subjects';
+        subtitleEl.textContent = 'One combined target across every subject.';
+        explainerEl.innerHTML = `Reach ${timeText} total across all subjects — any mix counts, e.g. ${half} + ${half}. <span class="hit-check">✓</span>`;
+      } else {
+        const name = currentActivity ? activityDisplayName(currentActivity) : 'this subject';
+        titleEl.textContent = `Daily Goal · ${name}`;
+        subtitleEl.textContent = `Just for ${name} — each subject keeps its own goal.`;
+        explainerEl.innerHTML = `Reach ${timeText} in ${name} alone. Other subjects have their own goals.`;
+      }
+    }
+
+    // Reflect the toggle selection + copy + wheel for the active study goal mode.
     function applyStudyGoalSheetMode() {
       const subjectBtn = document.getElementById('studyGoalModeSubject');
       const overallBtn = document.getElementById('studyGoalModeOverall');
       subjectBtn.classList.toggle('is-selected', studyGoalSheetMode === 'subject');
       overallBtn.classList.toggle('is-selected', studyGoalSheetMode === 'overall');
-      const subtitle = document.getElementById('statsGoalSubtitle');
-      subtitle.textContent = studyGoalSheetMode === 'overall'
-        ? 'Combined time per day across all subjects'
-        : 'Time per day for this subject';
       const minutes = goalSheetCurrentMinutes();
       if (statsGoalWheelController) {
         const values = goalMinutesToWheelValues(minutes);
@@ -3353,6 +3426,7 @@
         document.getElementById('statsGoalCaption').textContent = buildStatsGoalCaption(values);
         requestAnimationFrame(() => statsGoalWheelController.reapply());
       }
+      updateGoalSheetCopy(minutes);
       syncStatsGoalChips(minutes);
     }
 
@@ -3370,6 +3444,7 @@
         (values) => {
           statsGoalCaption.textContent = buildStatsGoalCaption(values);
           syncStatsGoalChips(wheelValuesToGoalMinutes(values));
+          updateGoalSheetCopy(wheelValuesToGoalMinutes(values));
         }
       );
       // Study subjects get the per-subject / overall toggle; others use their own goal.
@@ -3382,16 +3457,14 @@
         modeRow.style.display = 'none';
         studyGoalSheetMode = 'subject';
       }
+      // Reflect which segment is active.
+      document.getElementById('studyGoalModeSubject').classList.toggle('is-selected', studyGoalSheetMode === 'subject');
+      document.getElementById('studyGoalModeOverall').classList.toggle('is-selected', studyGoalSheetMode === 'overall');
       const initialMinutes = goalSheetCurrentMinutes();
       const initialValues = goalMinutesToWheelValues(initialMinutes);
       statsGoalWheelController.setValues(initialValues);
       statsGoalCaption.textContent = buildStatsGoalCaption(initialValues);
-      if (studyContext) {
-        document.getElementById('statsGoalSubtitle').textContent = studyGoalSheetMode === 'overall'
-          ? 'Combined time per day across all subjects' : 'Time per day for this subject';
-      } else {
-        document.getElementById('statsGoalSubtitle').textContent = 'Time per day that counts as a "hit" for this activity';
-      }
+      updateGoalSheetCopy(initialMinutes);
       syncStatsGoalChips(initialMinutes);
       showStatsSheet('statsGoalSheetBackdrop');
       requestAnimationFrame(() => { if (statsGoalWheelController) statsGoalWheelController.reapply(); });
@@ -3756,13 +3829,64 @@
     }
 
     // On sign-in: pull cloud, merge with local, write the merged result back, subscribe.
+    // Decide how to load a signed-in account's data, given who currently owns the
+    // local cache. Prevents one account's data from bleeding into another on the same device.
+    //   merge   = same account on another device (or claiming local-only data) → combine
+    //   replace = a different account with cloud data → adopt that account's data
+    //   reset   = a different account with no cloud yet → start clean (don't carry over)
+    //   keep    = local-only data + no cloud → claim it as this account's first data
+    function decideAccountLoadStrategy(localOwnerId, signedInUserId, hasRemoteState) {
+      if (localOwnerId && localOwnerId === signedInUserId) return 'merge';
+      if (hasRemoteState) return 'replace';
+      if (localOwnerId && localOwnerId !== signedInUserId) return 'reset';
+      return 'keep';
+    }
+
+    // Replace local state wholesale with a remote state object (used when switching to a
+    // different account that has cloud data — no merge, so no cross-account contamination).
+    function replaceLocalStateWith(remoteStateObject) {
+      const activities = Array.isArray(remoteStateObject.activities)
+        ? remoteStateObject.activities.map(sanitizeActivity) : [];
+      if (activities.length === 0) { resetToFreshState(); return; }
+      appState.activities = activities;
+      const validCurrent = activities.some(a => a.activityId === remoteStateObject.currentActivityId);
+      appState.currentActivityId = validCurrent ? remoteStateObject.currentActivityId : activities[0].activityId;
+      const maxId = activities.reduce((mx, a) => Math.max(mx, a.activityId), 0);
+      appState.nextActivityId = (typeof remoteStateObject.nextActivityId === 'number' && remoteStateObject.nextActivityId > maxId)
+        ? remoteStateObject.nextActivityId : maxId + 1;
+      restoreStudySettings(remoteStateObject);
+    }
+
+    // Reset to a clean first-run state (used when a brand-new account signs in on a device
+    // that previously held a different account's data).
+    function resetToFreshState() {
+      appState.activities = [createActivityShell(1, 'Activity 01')];
+      appState.currentActivityId = 1;
+      appState.nextActivityId = 2;
+      appState.studyGoalMode = STUDY_GOAL_DEFAULTS.studyGoalMode;
+      appState.studyOverallGoalMinutes = STUDY_GOAL_DEFAULTS.studyOverallGoalMinutes;
+      appState.studySettingsModifiedMs = 0;
+    }
+
     async function activateCloudForUser(user) {
+      const localOwnerId = appState.ownerUserId || null;
       currentUser = user;
       const remoteState = await cloudSync.pull();
-      if (remoteState) {
-        mergeRemoteIntoLocal(remoteState);
+      const strategy = decideAccountLoadStrategy(localOwnerId, user.id, !!remoteState);
+      logSync('account load strategy: ' + strategy + (localOwnerId && localOwnerId !== user.id ? ' (switched accounts)' : ''));
+      if (strategy === 'merge') {
+        if (remoteState) mergeRemoteIntoLocal(remoteState);
+      } else if (strategy === 'replace') {
+        replaceLocalStateWith(remoteState);
+      } else if (strategy === 'reset') {
+        resetToFreshState();
       }
-      // Push the (merged or local-only) state up as the current truth.
+      // strategy 'keep' → leave local as-is (claim it for this account)
+      appState.ownerUserId = user.id;
+      persistStateToStorage();
+      renderAll();
+      if (typeof statsState !== 'undefined' && statsState.currentView === 'stats') renderStatsAll();
+      // Push the resulting state up as this account's current truth.
       cloudSync._pendingSerialized = JSON.stringify(appState);
       await cloudSync.flushNow();
       subscribeToRealtimeChanges();
@@ -3943,10 +4067,16 @@
       accountSyncNowButton.addEventListener('click', async () => { await syncNow(); });
     }
     document.getElementById('accountSignInButton').addEventListener('click', async () => {
-      if (!supabaseClient) { return; }
+      if (!supabaseClient) { logSync('sign-in ignored: client not ready', true); return; }
+      logSync('— Sign in pressed (forcing account chooser) —');
+      // prompt:'select_account' makes Google always show the account picker, so you can
+      // switch between accounts instead of it silently reusing the current Google login.
       await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.href.split('#')[0].split('?')[0] },
+        options: {
+          redirectTo: window.location.href.split('#')[0].split('?')[0],
+          queryParams: { prompt: 'select_account' },
+        },
       });
       // Page redirects to Google, returns, onAuthStateChange handles the rest.
     });
