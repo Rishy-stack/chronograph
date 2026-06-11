@@ -98,6 +98,71 @@
     @media (min-width: 1280px) {
       body { max-width: 820px; }
     }
+    /* ============ Goal-met celebration ============
+       A one-time, tasteful moment when today's goal is crossed: a center pill that
+       pops in + a small burst of confetti dots (colored from the subject palette).
+       Pure CSS animation; reduced-motion gets a simple fade with no particles. */
+    .goal-celebration {
+      position: fixed; inset: 0; z-index: 80;
+      display: none; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .goal-celebration.is-active { display: flex; }
+    .goal-celebration-pill {
+      background: var(--color-surface);
+      color: var(--color-text-primary);
+      border: 0.5px solid var(--color-border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      border-radius: 20px;
+      padding: 14px 22px;
+      font-family: var(--font-ui); font-size: 16px; font-weight: 600;
+      text-align: center;
+      animation: celebrationPillPop 1.8s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    }
+    .goal-celebration-pill .celebration-sub {
+      display: block; margin-top: 2px;
+      font-size: 12.5px; font-weight: 400; color: var(--color-text-muted);
+    }
+    @keyframes celebrationPillPop {
+      0% { opacity: 0; transform: scale(0.7) translateY(12px); }
+      12% { opacity: 1; transform: scale(1.04) translateY(0); }
+      18% { transform: scale(1); }
+      80% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.96) translateY(-8px); }
+    }
+    .celebration-confetti-dot {
+      position: absolute; left: 50%; top: 50%;
+      width: 8px; height: 8px; border-radius: 50%;
+      opacity: 0;
+      animation: celebrationConfettiBurst 1.4s ease-out forwards;
+    }
+    @keyframes celebrationConfettiBurst {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+      10% { opacity: 1; }
+      100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(1);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .goal-celebration-pill { animation: celebrationPillFade 1.8s ease forwards; }
+      .celebration-confetti-dot { display: none; }
+    }
+    @keyframes celebrationPillFade {
+      0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; }
+    }
+
+    /* Landscape phones / very short windows: the width queries above would otherwise
+       apply desktop sizing (104px timer, 700px column) inside a ~400px-tall viewport.
+       Compact everything vertically so timer + controls fit without scrolling. */
+    @media (orientation: landscape) and (max-height: 520px) {
+      body { max-width: 640px; }
+      .timer-display-value { font-size: clamp(44px, 11vh, 64px); }
+      .timer-display-section { padding-top: 8px; padding-bottom: 6px; }
+      .activity-tabs-section { padding-top: 6px; padding-bottom: 4px; }
+      .control-button { width: 60px; height: 60px; font-size: 14px; }
+      .controls-section { padding-top: 4px; padding-bottom: 8px; }
+    }
 
     /* === Activity tabs === */
     .activity-tabs-section {
@@ -1475,10 +1540,13 @@
     </div>
   </div>
 
+  <!-- Goal-met celebration overlay (populated + activated by JS, once per day per goal) -->
+  <div class="goal-celebration" id="goalCelebration" aria-hidden="true"></div>
+
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.6.0';
+    const APP_VERSION = '2.7.0';
 
     // ============ State ============
     const appState = {
@@ -1491,6 +1559,7 @@
       studyOverallGoalMinutes: 120,      // combined daily target when mode = 'overall' (default 2 hr)
       studySettingsModifiedMs: 0,        // for multi-device merge of these settings (newest wins)
       ownerUserId: null,                 // which signed-in user this local data belongs to (account isolation)
+      deletedActivityIds: [],            // tombstones: whole activities deleted, so merge won't resurrect them
     };
     const STUDY_GOAL_DEFAULTS = { studyGoalMode: 'overall', studyOverallGoalMinutes: 120 };
 
@@ -1566,6 +1635,8 @@
     function commitChange() {
       persistStateToStorage();
       renderAll();
+      // Keep the Stats view live too (charts, Today, cards) when it's open.
+      if (typeof statsState !== 'undefined' && statsState.currentView === 'stats') renderStatsAll();
     }
 
     // ============ Reusable wheel picker ============
@@ -1706,6 +1777,9 @@
       appState.studySettingsModifiedMs = (typeof source.studySettingsModifiedMs === 'number')
         ? source.studySettingsModifiedMs : 0;
       if (typeof source.ownerUserId === 'string') appState.ownerUserId = source.ownerUserId;
+      appState.deletedActivityIds = Array.isArray(source.deletedActivityIds)
+        ? source.deletedActivityIds.filter(id => typeof id === 'number')
+        : []; // absent in source = source has no deletes; inheriting old ones would leak across accounts
     }
 
     async function loadPersistedStateFromStorage() {
@@ -2180,11 +2254,66 @@
       } else if (todayMinutes >= goalMinutes) {
         goalNudge.textContent = `Goal met today${scopeLabel} · ${formatHoursMinutes(todayMinutes)} ✓`;
         goalNudge.classList.add('is-met');
+        maybeCelebrateGoalMet(todayMinutes, goalMinutes, studyOverall, currentActivity);
       } else {
         const remaining = goalMinutes - todayMinutes;
         goalNudge.textContent = `${formatHoursMinutes(todayMinutes)} of ${formatHoursMinutes(goalMinutes)} today${scopeLabel} · ${formatHoursMinutes(remaining)} to go`;
         goalNudge.classList.remove('is-met');
       }
+    }
+
+    // ============ Goal-met celebration ============
+    // One tasteful moment when today's goal is crossed. Once per day per goal context,
+    // device-local (each device gets its own moment; nothing added to synced state).
+    const CELEBRATION_STORAGE_KEY = 'chronograph:celebrated:v1';
+
+    // Pure decision: celebrate only on a genuine, uncelebrated goal hit.
+    function shouldCelebrateGoal(todayMinutes, goalMinutes, alreadyCelebrated) {
+      return goalMinutes > 0 && todayMinutes >= goalMinutes && !alreadyCelebrated;
+    }
+    function buildCelebrationContextKey(studyOverall, activityId) {
+      return studyOverall ? 'overall' : `activity-${activityId}`;
+    }
+    function hasCelebratedToday(contextKey) {
+      try {
+        return localStorage.getItem(CELEBRATION_STORAGE_KEY) === `${formatDateKey(new Date())}:${contextKey}`;
+      } catch (storageError) { return false; }
+    }
+    function markCelebratedToday(contextKey) {
+      try {
+        localStorage.setItem(CELEBRATION_STORAGE_KEY, `${formatDateKey(new Date())}:${contextKey}`);
+      } catch (storageError) { /* fail silently */ }
+    }
+
+    // Show the pill + confetti burst, then clean up after the animation ends.
+    function playGoalCelebration(headlineText, subText) {
+      const celebrationLayer = document.getElementById('goalCelebration');
+      if (!celebrationLayer) return;
+      const confettiDotsHtml = SUBJECT_COLOR_PALETTE.map((paletteColor, dotIndex) => {
+        const burstAngle = (Math.PI * 2 * dotIndex) / SUBJECT_COLOR_PALETTE.length;
+        const burstDistance = 90 + (dotIndex % 3) * 26;
+        const burstX = Math.round(Math.cos(burstAngle) * burstDistance);
+        const burstY = Math.round(Math.sin(burstAngle) * burstDistance);
+        return `<span class="celebration-confetti-dot" style="background:${paletteColor};--burst-x:${burstX}px;--burst-y:${burstY}px"></span>`;
+      }).join('');
+      celebrationLayer.innerHTML =
+        `${confettiDotsHtml}<div class="goal-celebration-pill">${headlineText}<span class="celebration-sub">${subText}</span></div>`;
+      celebrationLayer.classList.add('is-active');
+      setTimeout(() => {
+        celebrationLayer.classList.remove('is-active');
+        celebrationLayer.innerHTML = '';
+      }, 1900);
+    }
+
+    // Called from renderGoalNudge with today's numbers already computed.
+    function maybeCelebrateGoalMet(todayMinutes, goalMinutes, studyOverall, currentActivity) {
+      const contextKey = buildCelebrationContextKey(studyOverall, currentActivity.activityId);
+      if (!shouldCelebrateGoal(todayMinutes, goalMinutes, hasCelebratedToday(contextKey))) return;
+      markCelebratedToday(contextKey);
+      const headlineText = studyOverall
+        ? 'Daily study goal met! 🎉'
+        : `${activityDisplayName(currentActivity)} goal met! 🎉`;
+      playGoalCelebration(headlineText, `${formatHoursMinutes(todayMinutes)} today — keep the streak alive`);
     }
 
     // ============ Actions: stopwatch ============
@@ -2619,6 +2748,10 @@
         if (appState.activities.length <= 1) { hideEditModal(); return; }
         const currentIndex = appState.activities.findIndex(activityEntry => activityEntry.activityId === appState.currentActivityId);
         if (currentIndex === -1) { hideEditModal(); return; }
+        const deletedId = appState.activities[currentIndex].activityId;
+        // Tombstone the whole activity so a merge from another device can't resurrect it.
+        if (!Array.isArray(appState.deletedActivityIds)) appState.deletedActivityIds = [];
+        if (!appState.deletedActivityIds.includes(deletedId)) appState.deletedActivityIds.push(deletedId);
         appState.activities.splice(currentIndex, 1);
         appState.currentActivityId = appState.activities[Math.max(0, currentIndex - 1)].activityId;
         persistStateToStorage();
@@ -2751,15 +2884,32 @@
       return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     }
 
+    // Time worked since the last committed lap (running segment included). This is the
+    // portion that WILL be attributed to "now" when committed, so for live displays it
+    // counts toward today. Works for any activity (not just the current one).
+    function getUncommittedSessionMsNow(activity) {
+      if (!activity || !Array.isArray(activity.laps)) return 0;
+      const totalMs = (activity.isRunning && activity.segmentStartTimestamp !== null)
+        ? activity.accumulatedBeforeSegmentMs + (Date.now() - activity.segmentStartTimestamp)
+        : activity.accumulatedBeforeSegmentMs;
+      const lastCommittedSplitMs = activity.laps.length > 0
+        ? activity.laps[activity.laps.length - 1].splitTimeMs : 0;
+      return Math.max(0, totalMs - lastCommittedSplitMs);
+    }
+
     function getMinutesForDate(activity, dateObject) {
-      // Returns null if before tracking started for this activity; otherwise minutes (>=0)
+      // Returns null if before tracking started for this activity; otherwise minutes (>=0).
+      // Live: the uncommitted session (running or paused-but-not-yet-committed) counts
+      // toward TODAY, so "Today", charts, nudge, and streak update in real time.
+      const uncommittedTodayMinutes = isSameLocalDate(dateObject, new Date())
+        ? getUncommittedSessionMsNow(activity) / 60000 : 0;
       const earliestTrackingDate = getEarliestTrackingDate(activity);
-      if (!earliestTrackingDate) return null;
+      if (!earliestTrackingDate) return uncommittedTodayMinutes > 0 ? uncommittedTodayMinutes : null;
       const earliestMidnight = dateAtMidnight(earliestTrackingDate);
       const candidateMidnight = dateAtMidnight(dateObject);
-      if (candidateMidnight < earliestMidnight) return null;
+      if (candidateMidnight < earliestMidnight && uncommittedTodayMinutes <= 0) return null;
       const dailyMap = getActivityLapDailyTotalsMinutes(activity);
-      return dailyMap[formatDateKey(dateObject)] || 0;
+      return (dailyMap[formatDateKey(dateObject)] || 0) + uncommittedTodayMinutes;
     }
 
     function formatHoursMinutes(totalMinutes) {
@@ -3178,7 +3328,9 @@
       const statsPage = document.getElementById('statsPage');
       const emptyState = document.getElementById('statsEmptyState');
       renderStatsTopBar();
-      const hasAnyTrackedData = currentActivity && getEarliestTrackingDate(currentActivity) !== null;
+      const hasAnyTrackedData = currentActivity
+        && (getEarliestTrackingDate(currentActivity) !== null
+            || getUncommittedSessionMsNow(currentActivity) > 0);
       if (!hasAnyTrackedData) {
         statsPage.style.display = 'none';
         emptyState.style.display = 'flex';
@@ -3194,13 +3346,19 @@
       renderStatsCalendar();
       renderStatsHeatmap();
       renderStudyOverview();
-      document.getElementById('statsFooterGoal').textContent = `${currentActivity.dailyGoalMinutes} min/day`;
+      const footerStudyOverall = activityIsStudy(currentActivity) && appState.studyGoalMode === 'overall';
+      document.getElementById('statsFooterGoal').textContent = footerStudyOverall
+        ? `${formatHoursMinutes(appState.studyOverallGoalMinutes)}/day · all subjects`
+        : `${currentActivity.dailyGoalMinutes} min/day`;
     }
 
     // All-subjects overview + weekly breakdown (only shown when study subjects exist).
     function renderStudyOverview() {
       const section = document.getElementById('studyOverviewSection');
       if (!section) return;
+      // Context-pure stats: the all-subjects overview belongs to study subjects only.
+      // Viewing a non-study activity (e.g. Chanting) must not show subject data.
+      if (!activityIsStudy(getCurrentActivity())) { section.style.display = 'none'; return; }
       const studyActivities = getStudyActivities();
       if (studyActivities.length === 0) { section.style.display = 'none'; return; }
       section.style.display = '';
@@ -3267,6 +3425,10 @@
       const grid = document.getElementById('statsHeatmapGrid');
       const monthsRow = document.getElementById('statsHeatmapMonths');
       if (!grid || !monthsRow) return;
+      // Rebuilding the grid resets the horizontal scroll position; remember and
+      // restore it so live refreshes don't yank the user back.
+      const heatmapScrollContainer = grid.closest('.heatmap-scroll');
+      const previousScrollLeft = heatmapScrollContainer ? heatmapScrollContainer.scrollLeft : 0;
       const currentActivity = getCurrentActivity();
       const goalMinutes = currentActivity ? currentActivity.dailyGoalMinutes : 60;
       const today = dateAtMidnight(new Date());
@@ -3294,6 +3456,9 @@
       }
       grid.innerHTML = cellsHtml;
       monthsRow.innerHTML = buildHeatmapMonthLabels(start, today, monthNamesShort);
+      if (heatmapScrollContainer && previousScrollLeft > 0) {
+        heatmapScrollContainer.scrollLeft = previousScrollLeft;
+      }
     }
     // Month labels spaced to sit above the column where each month starts.
     function buildHeatmapMonthLabels(start, today, monthNamesShort) {
@@ -3529,12 +3694,33 @@
     });
 
     // ============ Animation loop ============
+    let lastPerSecondRenderSecond = -1;
+    let lastStatsLiveRenderMinute = -1;
     function animationFrameTick() {
       const currentActivity = getCurrentActivity();
       if (currentActivity && currentActivity.isRunning) {
         renderTimerDisplay();
         updateLiveLapDurationText();
         if (activityIsChant(currentActivity)) renderDaimokuCounter();
+        // Once per second: live goal nudge (cheap text update).
+        const nowSecond = Math.floor(Date.now() / 1000);
+        if (nowSecond !== lastPerSecondRenderSecond) {
+          lastPerSecondRenderSecond = nowSecond;
+          renderGoalNudge();
+          // Stats display minutes, so refresh on minute boundaries only — avoids
+          // rebuilding the chart/heatmap every second (which killed the tap-tooltip
+          // and reset heatmap scroll). Skip entirely while the user has a tooltip open.
+          const nowMinute = Math.floor(Date.now() / 60000);
+          if (nowMinute !== lastStatsLiveRenderMinute
+              && typeof statsState !== 'undefined' && statsState.currentView === 'stats') {
+            const chartTooltip = document.getElementById('statsChartTooltip');
+            const tooltipOpen = chartTooltip && chartTooltip.classList.contains('is-visible');
+            if (!tooltipOpen) {
+              lastStatsLiveRenderMinute = nowMinute;
+              renderStatsAll();
+            }
+          }
+        }
       }
       requestAnimationFrame(animationFrameTick);
     }
@@ -3751,9 +3937,27 @@
           : remoteActivity;
       });
 
-      const mergedActivities = Object.values(activitiesById).map(sanitizeActivity);
-      const maxExistingActivityId = mergedActivities.length
-        ? Math.max(...mergedActivities.map(a => a.activityId)) : 0;
+      // Union of activity tombstones from both sides; a deleted activity stays deleted
+      // (delete wins) so it can't be resurrected by the other device on sync.
+      const mergedDeletedActivityIds = Array.from(new Set([
+        ...(Array.isArray(localState.deletedActivityIds) ? localState.deletedActivityIds : []),
+        ...(Array.isArray(remoteState.deletedActivityIds) ? remoteState.deletedActivityIds : []),
+      ].filter(id => typeof id === 'number')));
+      const tombstonedActivitySet = new Set(mergedDeletedActivityIds);
+
+      let mergedActivities = Object.values(activitiesById)
+        .filter(activityEntry => !tombstonedActivitySet.has(activityEntry.activityId))
+        .map(sanitizeActivity);
+      // Safety: never leave the app with zero activities (e.g. two devices each deleted a
+      // different one). The fallback id must NOT be a tombstoned id, or every future merge
+      // would delete the fallback again (and any data the user put into it).
+      if (mergedActivities.length === 0) {
+        const maxTombstonedId = mergedDeletedActivityIds.length ? Math.max(...mergedDeletedActivityIds) : 0;
+        const fallbackActivityId = Math.max(
+          localState.nextActivityId || 1, remoteState.nextActivityId || 1, maxTombstonedId + 1);
+        mergedActivities = [sanitizeActivity(createActivityShell(fallbackActivityId, 'Activity 01'))];
+      }
+      const maxExistingActivityId = Math.max(...mergedActivities.map(a => a.activityId), 0);
       const mergedNextActivityId = Math.max(
         localState.nextActivityId || 1, remoteState.nextActivityId || 1, maxExistingActivityId + 1);
 
@@ -3780,6 +3984,7 @@
         studyGoalMode: mergedStudyGoalMode,
         studyOverallGoalMinutes: mergedStudyOverallGoalMinutes,
         studySettingsModifiedMs: mergedStudySettingsModifiedMs,
+        deletedActivityIds: mergedDeletedActivityIds,
       };
     }
 
@@ -3790,13 +3995,25 @@
       const beforeSerialized = JSON.stringify(appState);
       if (JSON.stringify(remoteStateObject) === beforeSerialized) return false; // our own echo
       const merged = mergeStates(
-        { activities: appState.activities, currentActivityId: appState.currentActivityId, nextActivityId: appState.nextActivityId },
+        {
+          activities: appState.activities,
+          currentActivityId: appState.currentActivityId,
+          nextActivityId: appState.nextActivityId,
+          studyGoalMode: appState.studyGoalMode,
+          studyOverallGoalMinutes: appState.studyOverallGoalMinutes,
+          studySettingsModifiedMs: appState.studySettingsModifiedMs,
+          deletedActivityIds: appState.deletedActivityIds,
+        },
         remoteStateObject
       );
       const candidate = {
         activities: merged.activities,
         currentActivityId: merged.currentActivityId,
         nextActivityId: merged.nextActivityId,
+        studyGoalMode: merged.studyGoalMode,
+        studyOverallGoalMinutes: merged.studyOverallGoalMinutes,
+        studySettingsModifiedMs: merged.studySettingsModifiedMs,
+        deletedActivityIds: merged.deletedActivityIds,
       };
       // B3: only adopt + re-render + persist if the merge actually changed our state.
       // Prevents needless cloud writes and cross-device write ping-pong.
@@ -3866,6 +4083,9 @@
       appState.studyGoalMode = STUDY_GOAL_DEFAULTS.studyGoalMode;
       appState.studyOverallGoalMinutes = STUDY_GOAL_DEFAULTS.studyOverallGoalMinutes;
       appState.studySettingsModifiedMs = 0;
+      // Fresh start = fresh tombstones. Carrying another account's deletedActivityIds
+      // here would silently delete this account's future activities with the same ids.
+      appState.deletedActivityIds = [];
     }
 
     async function activateCloudForUser(user) {
