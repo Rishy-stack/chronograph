@@ -364,8 +364,8 @@
       transition: background 150ms ease;
     }
     .lap-row:active { background: var(--color-surface); }
-    .lap-row.is-best-lap .lap-row-duration { color: var(--color-accent-start-text); }
-    .lap-row.is-worst-lap .lap-row-duration { color: var(--color-accent-stop-text); }
+    /* (Best/worst lap racing colors removed — fastest/slowest is a stopwatch concept;
+       for practice tracking a long session is good, not "worst".) */
 
     .lap-row-main {
       display: grid;
@@ -1278,20 +1278,20 @@
   </section>
 
   <section class="controls-section">
-    <button class="control-button secondary-action" id="lapResetButton" disabled>Lap</button>
+    <button class="control-button secondary-action" id="lapResetButton" disabled>Log</button>
     <button class="control-button primary-action" id="startStopButton">Start</button>
   </section>
 
   <section class="laps-section" id="lapsSection">
     <div class="lap-row lap-row-live" id="liveLapRow" style="display:none">
       <div class="lap-row-main">
-        <div class="lap-row-number" id="liveLapNumberLabel">Lap</div>
-        <div class="lap-row-duration lap-row-duration-live" id="liveLapDuration" role="button" aria-label="Edit current lap duration">00:00.00</div>
-        <button class="lap-row-delete-button" id="liveLapDeleteButton" aria-label="Discard current lap">×</button>
+        <div class="lap-row-number" id="liveLapNumberLabel">Session</div>
+        <div class="lap-row-duration lap-row-duration-live" id="liveLapDuration" role="button" aria-label="Edit current session duration">00:00.00</div>
+        <button class="lap-row-delete-button" id="liveLapDeleteButton" aria-label="Discard current session">×</button>
       </div>
       <div class="lap-row-timestamp" id="liveLapTimestamp"></div>
     </div>
-    <div class="laps-empty-state" id="lapsEmptyState">No laps recorded</div>
+    <div class="laps-empty-state" id="lapsEmptyState">No sessions yet</div>
   </section>
 
   </div>
@@ -1393,6 +1393,7 @@
               <span>More</span>
             </div>
           </div>
+          <div class="stats-card-meta" style="margin:2px 0 8px">Each square is a day · darker = more done vs your goal</div>
           <div class="heatmap-scroll">
             <div class="heatmap-months" id="statsHeatmapMonths"></div>
             <div class="heatmap-grid" id="statsHeatmapGrid"></div>
@@ -1481,6 +1482,14 @@
           <button class="study-goal-mode-option" id="studyGoalModeOverall" data-mode="overall">All subjects</button>
         </div>
       </div>
+      <div class="study-goal-mode-wrap" id="countGoalPeriodRow" style="display:none">
+        <div class="study-goal-mode-label">Goal period</div>
+        <div class="study-goal-mode">
+          <button class="study-goal-mode-option" data-period="daily">Daily</button>
+          <button class="study-goal-mode-option" data-period="weekly">Weekly</button>
+          <button class="study-goal-mode-option" data-period="monthly">Monthly</button>
+        </div>
+      </div>
       <p class="sheet-subtitle" id="statsGoalSubtitle">Time per day that counts as a "hit" for this activity</p>
       <div class="wheel-picker-caption" id="statsGoalCaption">1h 00m</div>
       <div class="wheel-picker" id="statsGoalWheel"></div>
@@ -1546,7 +1555,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.7.0';
+    const APP_VERSION = '2.8.2';
 
     // ============ State ============
     const appState = {
@@ -1577,11 +1586,18 @@
         lastModifiedMs: Date.now(),              // for multi-device merge: newest activity-level edit wins
         deletedLapIds: [],                       // tombstones: lapIds deleted, so merge won't resurrect them
         colorTag: null,                          // optional subject color index (study subjects); null = auto by name
+        goalPeriod: 'weekly',                    // count activities: goal window 'daily'|'weekly'|'monthly' (ignored for timed)
       };
     }
 
     // Stamp an activity (or lap) as just-modified, so the merge can pick the newest
     // version per item across devices. Called from mutation sites.
+    // Escape user-entered text (visit notes) before inserting into row HTML.
+    function escapeHtmlText(rawText) {
+      return String(rawText)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
     function stampActivityModified(activityObject) {
       if (activityObject) activityObject.lastModifiedMs = Date.now();
     }
@@ -1741,6 +1757,8 @@
           splitTimeMs: lapEntry.splitTimeMs,
           recordedAtWallClockMs: typeof lapEntry.recordedAtWallClockMs === 'number' ? lapEntry.recordedAtWallClockMs : null,
           lastModifiedMs: typeof lapEntry.lastModifiedMs === 'number' ? lapEntry.lastModifiedMs : (typeof lapEntry.recordedAtWallClockMs === 'number' ? lapEntry.recordedAtWallClockMs : 0),
+          ...(typeof lapEntry.noteText === 'string' && lapEntry.noteText.trim()
+            ? { noteText: lapEntry.noteText.trim().slice(0, 120) } : {}),
         }))
         : [];
       sanitized.nextLapId = typeof rawActivity.nextLapId === 'number' ? rawActivity.nextLapId : 1;
@@ -1752,6 +1770,8 @@
       sanitized.deletedLapIds = Array.isArray(rawActivity.deletedLapIds)
         ? rawActivity.deletedLapIds.filter(id => typeof id === 'number') : [];
       sanitized.colorTag = (typeof rawActivity.colorTag === 'number') ? rawActivity.colorTag : null;
+      sanitized.goalPeriod = ['daily', 'weekly', 'monthly'].includes(rawActivity.goalPeriod)
+        ? rawActivity.goalPeriod : 'weekly';
       // Drop any laps that are tombstoned (defensive; merge also enforces this).
       if (sanitized.deletedLapIds.length) {
         const tombstoned = new Set(sanitized.deletedLapIds);
@@ -2035,6 +2055,12 @@
     }
 
     function renderTimerDisplay() {
+      const currentActivity = getCurrentActivity();
+      if (currentActivity && activityIsCount(currentActivity)) {
+        const todayCount = getCountForDate(currentActivity, new Date()) || 0;
+        timerDisplayValue.innerHTML = `${todayCount}<span class="digits-centiseconds"> today</span>`;
+        return;
+      }
       const totalElapsedMs = getCurrentTotalElapsedMs();
       const formatted = formatElapsedTimeForDisplay(totalElapsedMs, true);
       timerDisplayValue.innerHTML = `${formatted.mainPart}<span class="digits-centiseconds">.${formatted.centiPart}</span>`;
@@ -2042,6 +2068,15 @@
 
     function renderSessionStartedLabel() {
       const currentActivity = getCurrentActivity();
+      if (currentActivity && activityIsCount(currentActivity)) {
+        const periodCount = getCountForCurrentPeriod(currentActivity);
+        const goalCount = currentActivity.dailyGoalMinutes || 0;
+        const periodLabel = COUNT_PERIOD_LABELS[currentActivity.goalPeriod] || 'this week';
+        sessionStartedLabel.textContent = goalCount > 0
+          ? `${periodCount} of ${goalCount} ${periodLabel}`
+          : `${periodCount} ${periodLabel}`;
+        return;
+      }
       if (!currentActivity || currentActivity.sessionStartedAtWallClockMs === null) {
         sessionStartedLabel.textContent = '';
         return;
@@ -2053,16 +2088,23 @@
     function renderControlButtons() {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
+      if (activityIsCount(currentActivity)) {
+        startStopButton.textContent = '+1';
+        startStopButton.classList.remove('is-stop-state');
+        lapResetButton.textContent = 'Undo';
+        lapResetButton.disabled = currentActivity.laps.length === 0;
+        return;
+      }
       if (currentActivity.isRunning) {
         startStopButton.textContent = 'Stop';
         startStopButton.classList.add('is-stop-state');
-        lapResetButton.textContent = 'Lap';
+        lapResetButton.textContent = 'Log';
         lapResetButton.disabled = false;
       } else {
         startStopButton.textContent = 'Start';
         startStopButton.classList.remove('is-stop-state');
         const hasAnyTime = currentActivity.accumulatedBeforeSegmentMs > 0 || currentActivity.laps.length > 0;
-        lapResetButton.textContent = hasAnyTime ? 'Reset' : 'Lap';
+        lapResetButton.textContent = hasAnyTime ? 'Reset' : 'Log';
         lapResetButton.disabled = !hasAnyTime;
       }
     }
@@ -2078,10 +2120,10 @@
       const lastCommittedSplitMs = currentActivity && currentActivity.laps.length >= 1
         ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs
         : 0;
-      const shouldShowLiveLap = currentActivity && currentActivity.laps.length >= 1;
+      const shouldShowLiveLap = currentActivity && !activityIsCount(currentActivity) && currentActivity.laps.length >= 1;
       if (shouldShowLiveLap) {
         liveLapRow.style.display = '';
-        liveLapNumberLabel.textContent = `Lap ${currentActivity.laps.length + 1}`;
+        liveLapNumberLabel.textContent = `Session ${currentActivity.laps.length + 1}`;
         // The live lap "started" when the previous lap was committed
         const previousLapEntry = currentActivity.laps[currentActivity.laps.length - 1];
         if (previousLapEntry.recordedAtWallClockMs !== null) {
@@ -2103,9 +2145,7 @@
       lapsEmptyState.style.display = 'none';
 
       const lapDurationsMs = currentActivity.laps.map((_, lapIndex) => getLapDurationMs(lapIndex));
-      const fastestDurationMs = Math.min(...lapDurationsMs);
-      const slowestDurationMs = Math.max(...lapDurationsMs);
-      const hasMultipleLaps = currentActivity.laps.length >= 2;
+      const isCountActivity = activityIsCount(currentActivity);
 
       for (let lapIndex = currentActivity.laps.length - 1; lapIndex >= 0; lapIndex--) {
         const lapEntry = currentActivity.laps[lapIndex];
@@ -2114,28 +2154,46 @@
 
         const lapRowElement = document.createElement('div');
         lapRowElement.className = 'lap-row';
-        if (hasMultipleLaps && lapDurationMs === fastestDurationMs) lapRowElement.classList.add('is-best-lap');
-        if (hasMultipleLaps && lapDurationMs === slowestDurationMs) lapRowElement.classList.add('is-worst-lap');
 
         const durationFormatted = formatElapsedTimeForDisplay(lapDurationMs, true);
         const timestampDisplayText = lapEntry.recordedAtWallClockMs !== null
           ? formatWallClockTimestampForDisplay(lapEntry.recordedAtWallClockMs, { includeDayOfWeek: true })
           : '';
 
+        if (isCountActivity) {
+          // Visit history row: number + tap-to-edit note/time, delete. No merge/best/worst
+          // (those are duration concepts; visits are events).
+          const noteDisplayText = lapEntry.noteText ? escapeHtmlText(lapEntry.noteText) : '';
+          lapRowElement.innerHTML = `
+            <div class="lap-row-main">
+              <div class="lap-row-number">Visit ${lapNumber}</div>
+              <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit visit ${lapNumber}">
+                ${noteDisplayText || 'Add note'}
+              </div>
+              <div class="lap-row-actions">
+                <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete visit ${lapNumber}">×</button>
+              </div>
+            </div>
+            ${timestampDisplayText ? `<div class="lap-row-timestamp">${timestampDisplayText}</div>` : ''}
+          `;
+          lapsSection.appendChild(lapRowElement);
+          continue;
+        }
+
         lapRowElement.innerHTML = `
           <div class="lap-row-main">
-            <div class="lap-row-number">Lap ${lapNumber}</div>
-            <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit lap ${lapNumber}">
+            <div class="lap-row-number">Session ${lapNumber}</div>
+            <div class="lap-row-duration" data-lap-id="${lapEntry.lapId}" role="button" aria-label="Edit session ${lapNumber}">
               ${durationFormatted.mainPart}.${durationFormatted.centiPart}
             </div>
             <div class="lap-row-actions">
-              <button class="lap-row-merge-button" data-lap-id="${lapEntry.lapId}" ${lapIndex === 0 ? 'disabled' : ''} aria-label="Merge lap ${lapNumber} into previous lap">
+              <button class="lap-row-merge-button" data-lap-id="${lapEntry.lapId}" ${lapIndex === 0 ? 'disabled' : ''} aria-label="Merge session ${lapNumber} into previous session">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M12 4v14"/>
                   <path d="M5 11l7 7 7-7"/>
                 </svg>
               </button>
-              <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete lap ${lapNumber}">×</button>
+              <button class="lap-row-delete-button" data-lap-id="${lapEntry.lapId}" aria-label="Delete session ${lapNumber}">×</button>
             </div>
           </div>
           ${timestampDisplayText ? `<div class="lap-row-timestamp">${timestampDisplayText}</div>` : ''}
@@ -2174,11 +2232,22 @@
       return !!(activity && typeof activity.activityName === 'string'
         && STUDY_PREFIX_REGEX.test(activity.activityName));
     }
+    // Count activities: name starts with "c#" (e.g. "c# Home visits"). Each entry is a
+    // tap-to-log event (a visit), not a timed session. Same prefix pattern as s# study.
+    const COUNT_PREFIX_REGEX = /^\s*c#\s*/i;
+    function activityIsCount(activity) {
+      return !!(activity && typeof activity.activityName === 'string'
+        && COUNT_PREFIX_REGEX.test(activity.activityName));
+    }
     function activityDisplayName(activity) {
       if (!activity || typeof activity.activityName !== 'string') return '';
       if (activityIsStudy(activity)) {
         const stripped = activity.activityName.replace(STUDY_PREFIX_REGEX, '').trim();
         return stripped || 'Subject';
+      }
+      if (activityIsCount(activity)) {
+        const stripped = activity.activityName.replace(COUNT_PREFIX_REGEX, '').trim();
+        return stripped || 'Counter';
       }
       return activity.activityName;
     }
@@ -2238,6 +2307,25 @@
       const currentActivity = getCurrentActivity();
       if (!currentActivity) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
 
+      if (activityIsCount(currentActivity)) {
+        const goalCount = currentActivity.dailyGoalMinutes || 0;
+        const periodCount = getCountForCurrentPeriod(currentActivity);
+        const periodLabel = COUNT_PERIOD_LABELS[currentActivity.goalPeriod] || 'this week';
+        if (goalCount <= 0) { goalNudge.textContent = ''; goalNudge.classList.remove('is-met'); return; }
+        if (periodCount >= goalCount) {
+          goalNudge.textContent = `Goal met ${periodLabel} · ${periodCount} ✓`;
+          goalNudge.classList.add('is-met');
+          maybeCelebrateGoalMet(periodCount, goalCount, false, currentActivity);
+        } else if (periodCount <= 0) {
+          goalNudge.textContent = `None yet ${periodLabel} · goal ${goalCount}`;
+          goalNudge.classList.remove('is-met');
+        } else {
+          goalNudge.textContent = `${periodCount} of ${goalCount} ${periodLabel} · ${goalCount - periodCount} to go`;
+          goalNudge.classList.remove('is-met');
+        }
+        return;
+      }
+
       const studyOverall = activityIsStudy(currentActivity) && appState.studyGoalMode === 'overall';
       const goalMinutes = studyOverall ? appState.studyOverallGoalMinutes : (currentActivity.dailyGoalMinutes || 0);
       const todayMinutes = Math.round(studyOverall
@@ -2262,6 +2350,129 @@
       }
     }
 
+    // ============ Count activities (c# prefix) ============
+    // A count activity logs tap-to-record events ("visits"): each event is a lap whose
+    // splitTimeMs is a tiny synthetic increment (so duration math stays harmless) and whose
+    // recordedAtWallClockMs carries the real meaning. For count activities, the activity's
+    // dailyGoalMinutes field stores the GOAL COUNT for its goalPeriod window.
+    const COUNT_PERIOD_WINDOW_DAYS = { daily: 1, weekly: 7, monthly: 30 };
+    const COUNT_PERIOD_LABELS = { daily: 'today', weekly: 'this week', monthly: 'this month' };
+    const COUNT_PERIOD_UNITS = { daily: 'day', weekly: 'wk', monthly: 'mo' };
+
+    function getCountForDate(activity, dateObject) {
+      // Mirrors getMinutesForDate semantics: null before tracking started, else count (>=0).
+      const earliestTrackingDate = getEarliestTrackingDate(activity);
+      if (!earliestTrackingDate) return null;
+      if (dateAtMidnight(dateObject) < dateAtMidnight(earliestTrackingDate)) return null;
+      const targetDateKey = formatDateKey(dateObject);
+      let entriesOnDate = 0;
+      activity.laps.forEach(lapEntry => {
+        if (typeof lapEntry.recordedAtWallClockMs === 'number'
+            && formatDateKey(new Date(lapEntry.recordedAtWallClockMs)) === targetDateKey) {
+          entriesOnDate += 1;
+        }
+      });
+      return entriesOnDate;
+    }
+
+    // Rolling-window totals matching the app's existing "this week = last 7 days" convention.
+    function computeCountWindowTotals(activity, windowDays) {
+      const today = new Date();
+      let currentWindow = 0, previousWindow = 0;
+      for (let dayOffset = 0; dayOffset < windowDays; dayOffset++) {
+        const currentDate = new Date(today); currentDate.setDate(currentDate.getDate() - dayOffset);
+        currentWindow += getCountForDate(activity, currentDate) || 0;
+        const previousDate = new Date(today); previousDate.setDate(previousDate.getDate() - windowDays - dayOffset);
+        previousWindow += getCountForDate(activity, previousDate) || 0;
+      }
+      return { currentWindow, previousWindow };
+    }
+
+    function getCountForCurrentPeriod(activity) {
+      const windowDays = COUNT_PERIOD_WINDOW_DAYS[activity.goalPeriod] || 7;
+      return computeCountWindowTotals(activity, windowDays).currentWindow;
+    }
+
+    // Consecutive periods (ending now) where the goal count was met. Walks back in
+    // whole windows; the current window must be met for the streak to be non-zero
+    // (mirrors the daily streak behavior for timed activities).
+    function computeCountPeriodStreak(activity) {
+      const goalCount = activity.dailyGoalMinutes || 0;
+      if (goalCount <= 0) return 0;
+      const windowDays = COUNT_PERIOD_WINDOW_DAYS[activity.goalPeriod] || 7;
+      const earliestTrackingDate = getEarliestTrackingDate(activity);
+      if (!earliestTrackingDate) return 0;
+      let streakCount = 0;
+      const today = new Date();
+      for (let windowIndex = 0; windowIndex < 400; windowIndex++) {
+        let windowTotal = 0;
+        let windowStart = null;
+        for (let dayOffset = 0; dayOffset < windowDays; dayOffset++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - windowIndex * windowDays - dayOffset);
+          windowStart = d;
+          windowTotal += getCountForDate(activity, d) || 0;
+        }
+        if (windowTotal >= goalCount) { streakCount += 1; }
+        else { break; }
+        if (dateAtMidnight(windowStart) <= dateAtMidnight(earliestTrackingDate)) break;
+      }
+      return streakCount;
+    }
+
+    // "Goal hit X% of N periods" since tracking began (capped at 36 windows for sanity).
+    function computeCountGoalHitStats(activity) {
+      const goalCount = activity.dailyGoalMinutes || 0;
+      const windowDays = COUNT_PERIOD_WINDOW_DAYS[activity.goalPeriod] || 7;
+      const earliestTrackingDate = getEarliestTrackingDate(activity);
+      if (!earliestTrackingDate || goalCount <= 0) return { hitPercent: 0, periodCount: 0 };
+      const daysSinceStart = Math.floor((dateAtMidnight(new Date()) - dateAtMidnight(earliestTrackingDate)) / 86400000) + 1;
+      const periodCount = Math.min(36, Math.max(1, Math.ceil(daysSinceStart / windowDays)));
+      let periodsMet = 0;
+      const today = new Date();
+      for (let windowIndex = 0; windowIndex < periodCount; windowIndex++) {
+        let windowTotal = 0;
+        for (let dayOffset = 0; dayOffset < windowDays; dayOffset++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - windowIndex * windowDays - dayOffset);
+          windowTotal += getCountForDate(activity, d) || 0;
+        }
+        if (windowTotal >= goalCount) periodsMet += 1;
+      }
+      return { hitPercent: Math.round((periodsMet / periodCount) * 100), periodCount };
+    }
+
+    // Log one entry ("+1") for the current count activity, with an optional note.
+    function logCountEntry(noteText) {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || !activityIsCount(currentActivity)) return;
+      const lastSplitMs = currentActivity.laps.length
+        ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs : 0;
+      const newEntry = {
+        lapId: currentActivity.nextLapId++,
+        splitTimeMs: lastSplitMs + 1000, // synthetic 1s step keeps duration math harmless
+        recordedAtWallClockMs: Date.now(),
+        lastModifiedMs: Date.now(),
+      };
+      const trimmedNote = typeof noteText === 'string' ? noteText.trim() : '';
+      if (trimmedNote) newEntry.noteText = trimmedNote.slice(0, 120);
+      currentActivity.laps.push(newEntry);
+      stampActivityModified(currentActivity);
+      commitChange();
+    }
+
+    // Undo: remove the most recent entry (tombstoned so the removal syncs everywhere).
+    function undoLastCountEntry() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || !activityIsCount(currentActivity) || currentActivity.laps.length === 0) return;
+      const removedEntry = currentActivity.laps.pop();
+      if (!currentActivity.deletedLapIds.includes(removedEntry.lapId)) {
+        currentActivity.deletedLapIds.push(removedEntry.lapId);
+      }
+      stampActivityModified(currentActivity);
+      commitChange();
+    }
+
     // ============ Goal-met celebration ============
     // One tasteful moment when today's goal is crossed. Once per day per goal context,
     // device-local (each device gets its own moment; nothing added to synced state).
@@ -2274,15 +2485,26 @@
     function buildCelebrationContextKey(studyOverall, activityId) {
       return studyOverall ? 'overall' : `activity-${activityId}`;
     }
-    function hasCelebratedToday(contextKey) {
+    function hasCelebratedToday(celebrationStampKey) {
       try {
-        return localStorage.getItem(CELEBRATION_STORAGE_KEY) === `${formatDateKey(new Date())}:${contextKey}`;
+        return localStorage.getItem(CELEBRATION_STORAGE_KEY) === celebrationStampKey;
       } catch (storageError) { return false; }
     }
-    function markCelebratedToday(contextKey) {
+    function markCelebratedToday(celebrationStampKey) {
       try {
-        localStorage.setItem(CELEBRATION_STORAGE_KEY, `${formatDateKey(new Date())}:${contextKey}`);
+        localStorage.setItem(CELEBRATION_STORAGE_KEY, celebrationStampKey);
       } catch (storageError) { /* fail silently */ }
+    }
+    // One stamp per goal window: timed goals are daily; count goals use their period's
+    // window index, so a met weekly goal celebrates once that week, not every day of it.
+    function buildCelebrationStampKey(currentActivity, studyOverall) {
+      const contextKey = buildCelebrationContextKey(studyOverall, currentActivity.activityId);
+      if (activityIsCount(currentActivity)) {
+        const windowDays = COUNT_PERIOD_WINDOW_DAYS[currentActivity.goalPeriod] || 7;
+        const windowIndex = Math.floor(Math.floor(Date.now() / 86400000) / windowDays);
+        return `period-${windowIndex}:${contextKey}`;
+      }
+      return `${formatDateKey(new Date())}:${contextKey}`;
     }
 
     // Show the pill + confetti burst, then clean up after the animation ends.
@@ -2307,19 +2529,23 @@
 
     // Called from renderGoalNudge with today's numbers already computed.
     function maybeCelebrateGoalMet(todayMinutes, goalMinutes, studyOverall, currentActivity) {
-      const contextKey = buildCelebrationContextKey(studyOverall, currentActivity.activityId);
-      if (!shouldCelebrateGoal(todayMinutes, goalMinutes, hasCelebratedToday(contextKey))) return;
-      markCelebratedToday(contextKey);
+      const celebrationStampKey = buildCelebrationStampKey(currentActivity, studyOverall);
+      if (!shouldCelebrateGoal(todayMinutes, goalMinutes, hasCelebratedToday(celebrationStampKey))) return;
+      markCelebratedToday(celebrationStampKey);
       const headlineText = studyOverall
         ? 'Daily study goal met! 🎉'
         : `${activityDisplayName(currentActivity)} goal met! 🎉`;
-      playGoalCelebration(headlineText, `${formatHoursMinutes(todayMinutes)} today — keep the streak alive`);
+      const subText = activityIsCount(currentActivity)
+        ? `${todayMinutes} ${COUNT_PERIOD_LABELS[currentActivity.goalPeriod] || 'this week'} — keep it up`
+        : `${formatHoursMinutes(todayMinutes)} today — keep the streak alive`;
+      playGoalCelebration(headlineText, subText);
     }
 
     // ============ Actions: stopwatch ============
     function handleStartStopPress() {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
+      if (activityIsCount(currentActivity)) { logCountEntry(''); return; } // "+1" logs a visit
       if (currentActivity.isRunning) {
         const totalAtStopMs = getCurrentTotalElapsedMs();
         currentActivity.accumulatedBeforeSegmentMs = totalAtStopMs;
@@ -2355,6 +2581,7 @@
     function handleLapOrResetPress() {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
+      if (activityIsCount(currentActivity)) { undoLastCountEntry(); return; } // "Undo" removes last visit
       if (currentActivity.isRunning) {
         const currentTotalMs = getCurrentTotalElapsedMs();
         currentActivity.laps.push({
@@ -2371,7 +2598,7 @@
         const lapCount = currentActivity.laps.length;
         openConfirmModal(
           'Reset Stopwatch',
-          `Discard the current time${lapCount > 0 ? ` and all ${lapCount} lap(s)` : ''}? This cannot be undone.`,
+          `Discard the current time${lapCount > 0 ? ` and all ${lapCount} session(s)` : ''}? This cannot be undone.`,
           'Reset',
           () => {
             currentActivity.accumulatedBeforeSegmentMs = 0;
@@ -2393,8 +2620,8 @@
       if (liveDurationMs <= 0) return;
       const lapNumber = currentActivity.laps.length + 1;
       openConfirmModal(
-        'Discard Current Lap',
-        `Discard Lap ${lapNumber} (in progress)? Its time will be removed from the total.`,
+        'Discard Current Session',
+        `Discard Session ${lapNumber} (in progress)? Its time will be removed from the total.`,
         'Discard',
         () => {
           adjustTotalByMs(currentActivity, -liveDurationMs);
@@ -2411,7 +2638,7 @@
       if (liveDurationMs <= 0) return;
       editModalContext.modeKind = 'live-lap-duration';
       editModalContext.targetLapId = null;
-      editModalTitle.textContent = `Edit Lap ${currentActivity.laps.length + 1}`;
+      editModalTitle.textContent = `Edit Session ${currentActivity.laps.length + 1}`;
       resetEditModalRegions();
       mountDurationWheel(liveDurationMs);
       editModalSaveButton.textContent = 'Save';
@@ -2428,7 +2655,7 @@
       const mergeLapNumber = lapIndexToMerge + 1;
       openConfirmModal(
         'Merge Lap',
-        `Merge Lap ${mergeLapNumber} into Lap ${mergeLapNumber - 1}? They'll combine into one lap. Total time is unchanged.`,
+        `Merge Session ${mergeLapNumber} into Session ${mergeLapNumber - 1}? They'll combine into one session. Total time is unchanged.`,
         'Merge',
         () => {
           // Remove the boundary at lapIndexToMerge - 1; the lap at lapIndexToMerge keeps its
@@ -2448,7 +2675,7 @@
       const lapNumber = lapIndexToDelete + 1;
       openConfirmModal(
         'Delete Lap',
-        `Delete Lap ${lapNumber}? Its time will be removed from the total.`,
+        `Delete Session ${lapNumber}? Its time will be removed from the total.`,
         'Delete',
         () => {
           // Capture duration before mutation
@@ -2578,9 +2805,30 @@
       if (!currentActivity) return;
       const lapIndex = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === lapId);
       if (lapIndex === -1) return;
+      if (activityIsCount(currentActivity)) {
+        // Visits edit a note + when it happened; duration doesn't apply.
+        editModalContext.modeKind = 'count-entry-edit';
+        editModalContext.targetLapId = lapId;
+        editModalTitle.textContent = `Edit Visit ${lapIndex + 1}`;
+        resetEditModalRegions();
+        const visitEntry = currentActivity.laps[lapIndex];
+        if (typeof visitEntry.recordedAtWallClockMs === 'number') {
+          editModalDateTimeRow.style.display = '';
+          seedDateTimeInputs(visitEntry.recordedAtWallClockMs);
+        }
+        editModalInput.style.display = '';
+        editModalInput.setAttribute('inputmode', 'text');
+        editModalInput.placeholder = 'Note (optional, e.g. member initials)';
+        editModalInput.value = visitEntry.noteText || '';
+        editModalSaveButton.textContent = 'Save';
+        editModalSaveButton.classList.remove('danger-action');
+        editModalSaveButton.classList.add('save-action');
+        showEditModal();
+        return;
+      }
       editModalContext.modeKind = 'lap-duration';
       editModalContext.targetLapId = lapId;
-      editModalTitle.textContent = `Edit Lap ${lapIndex + 1}`;
+      editModalTitle.textContent = `Edit Session ${lapIndex + 1}`;
       resetEditModalRegions();
       mountDurationWheel(getLapDurationMs(lapIndex));
       // Item 3: allow changing the recorded date/time of this lap
@@ -2607,7 +2855,7 @@
       editModalInput.setAttribute('inputmode', 'text');
       editModalInput.value = currentActivity.activityName;
       editModalFormatHint.classList.remove('is-error');
-      editModalFormatHint.textContent = 'Up to 50 characters';
+      editModalFormatHint.textContent = 'Tip: start with s# for a study subject, or c# for a tap counter (e.g. "c# Home visits")';
       editModalSaveButton.textContent = 'Save';
       editModalSaveButton.classList.remove('danger-action');
       editModalSaveButton.classList.add('save-action');
@@ -2622,7 +2870,7 @@
       editModalContext.targetLapId = null;
       editModalTitle.textContent = 'Delete Activity';
       editModalMessage.style.display = '';
-      editModalMessage.textContent = `Delete "${activityDisplayName(currentActivity)}" and all ${currentActivity.laps.length} lap(s)? This cannot be undone.`;
+      editModalMessage.textContent = `Delete "${activityDisplayName(currentActivity)}" and all ${currentActivity.laps.length} ${activityIsCount(currentActivity) ? 'visit(s)' : 'session(s)'}? This cannot be undone.`;
       editModalInput.style.display = 'none';
       editModalFormatHint.textContent = '';
       editModalSaveButton.textContent = 'Delete';
@@ -2674,6 +2922,26 @@
         pendingConfirmCallback = null;
         hideEditModal();
         if (typeof callback === 'function') callback();
+        return;
+      }
+      if (editModalContext.modeKind === 'count-entry-edit') {
+        const currentActivity = getCurrentActivity();
+        if (!currentActivity) { hideEditModal(); return; }
+        const visitIndex = currentActivity.laps.findIndex(lapEntry => lapEntry.lapId === editModalContext.targetLapId);
+        if (visitIndex === -1) { hideEditModal(); return; }
+        const visitEntry = currentActivity.laps[visitIndex];
+        if (editModalDateTimeRow.style.display !== 'none') {
+          const newRecordedMs = readDateTimeInputs(visitEntry.recordedAtWallClockMs);
+          if (newRecordedMs !== null) visitEntry.recordedAtWallClockMs = newRecordedMs;
+        }
+        const newNoteText = editModalInput.value.trim().slice(0, 120);
+        if (newNoteText) { visitEntry.noteText = newNoteText; }
+        else { delete visitEntry.noteText; }
+        stampLapModified(visitEntry);
+        stampActivityModified(currentActivity);
+        persistStateToStorage();
+        hideEditModal();
+        renderAll();
         return;
       }
       if (editModalContext.modeKind === 'lap-duration' || editModalContext.modeKind === 'live-lap-duration') {
@@ -3036,6 +3304,48 @@
       const currentActivity = getCurrentActivity();
       const container = document.getElementById('statsSummaryCards');
       if (!currentActivity) { container.innerHTML = ''; return; }
+      if (activityIsCount(currentActivity)) {
+        const periodUnit = COUNT_PERIOD_UNITS[currentActivity.goalPeriod] || 'wk';
+        const windowDays = COUNT_PERIOD_WINDOW_DAYS[currentActivity.goalPeriod] || 7;
+        const periodStreak = computeCountPeriodStreak(currentActivity);
+        const windowTotals = computeCountWindowTotals(currentActivity, windowDays);
+        const hitStats = computeCountGoalHitStats(currentActivity);
+        const windowCardLabel = currentActivity.goalPeriod === 'daily' ? 'Today'
+          : (currentActivity.goalPeriod === 'monthly' ? 'This month' : 'This week');
+        let countDeltaText = '—', countDeltaClass = '';
+        if (windowTotals.previousWindow > 0) {
+          const pct = Math.round(((windowTotals.currentWindow - windowTotals.previousWindow) / windowTotals.previousWindow) * 100);
+          if (pct > 0) { countDeltaText = `↑ ${pct}%`; countDeltaClass = 'delta-up'; }
+          else if (pct < 0) { countDeltaText = `↓ ${Math.abs(pct)}%`; countDeltaClass = 'delta-down'; }
+          else { countDeltaText = '0%'; }
+        } else if (windowTotals.currentWindow > 0) {
+          countDeltaText = 'new'; countDeltaClass = 'delta-up';
+        }
+        container.innerHTML = `
+        <div class="summary-card">
+          <div class="summary-card-label">Streak</div>
+          <div>
+            <div class="summary-card-value"><span class="number">${periodStreak}</span><span class="unit">${periodUnit}${periodStreak === 1 ? '' : 's'}</span></div>
+            <div class="summary-card-sub">${periodStreak === 0 ? 'Hit goal to start' : 'Keep it going'}</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">${windowCardLabel}</div>
+          <div>
+            <div class="summary-card-value"><span class="number">${windowTotals.currentWindow}</span><span class="unit">visits</span></div>
+            <div class="summary-card-sub"><span class="${countDeltaClass}">${countDeltaText}</span> ${currentActivity.goalPeriod === 'daily' ? 'vs yesterday' : currentActivity.goalPeriod === 'monthly' ? 'vs last month' : 'vs last week'}</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">Goal hit</div>
+          <div>
+            <div class="summary-card-value"><span class="number">${hitStats.hitPercent}</span><span class="unit">%</span></div>
+            <div class="summary-card-sub">of ${hitStats.periodCount} ${periodUnit}${hitStats.periodCount === 1 ? '' : 's'}</div>
+          </div>
+        </div>
+        `;
+        return;
+      }
       // In overall study mode, the streak reflects the combined daily target across subjects.
       const studyOverall = activityIsStudy(currentActivity) && appState.studyGoalMode === 'overall';
       const streakCount = studyOverall ? computeCombinedStudyStreak() : computeCurrentStreak(currentActivity);
@@ -3065,7 +3375,7 @@
           <div class="summary-card-label">This week</div>
           <div>
             <div class="summary-card-value"><span class="number">${weekParts[0]}</span>${weekParts[1] ? `<span class="unit">${weekParts[1]}</span>` : ''}</div>
-            <div class="summary-card-sub"><span class="${deltaClass}">${deltaText}</span> vs last</div>
+            <div class="summary-card-sub"><span class="${deltaClass}">${deltaText}</span> vs last week</div>
           </div>
         </div>
         <div class="summary-card">
@@ -3081,9 +3391,10 @@
     function computeRangeSeries(activity, days) {
       const today = new Date();
       const series = [];
+      const valueForDate = activityIsCount(activity) ? getCountForDate : getMinutesForDate;
       for (let i = days - 1; i >= 0; i--) {
         const d = new Date(today); d.setDate(d.getDate() - i);
-        const m = getMinutesForDate(activity, d);
+        const m = valueForDate(activity, d);
         series.push({ date: d, mins: m == null ? 0 : m, hasEntry: m != null });
       }
       return series;
@@ -3109,7 +3420,12 @@
       if (!currentActivity) { svg.innerHTML = ''; xlabels.innerHTML = ''; return; }
       const days = statsState.rangeDays;
       const series = computeRangeSeries(currentActivity, days);
-      const goalMinutes = currentActivity.dailyGoalMinutes;
+      const chartIsCount = activityIsCount(currentActivity);
+      // For count activities the dashed goal line only makes sense per-day; weekly/monthly
+      // targets don't map onto daily bars, so the line is hidden for those periods.
+      const goalMinutes = chartIsCount
+        ? (currentActivity.goalPeriod === 'daily' ? currentActivity.dailyGoalMinutes : 0)
+        : currentActivity.dailyGoalMinutes;
       const avgSeries = computeRolling7DayAverage(series);
 
       const VB_W = 320, VB_H = 168, PAD_T = 14, PAD_B = 8, PAD_L = 24, PAD_R = 8;
@@ -3128,9 +3444,11 @@
       let svgInnerHtml = '';
       svgInnerHtml += `<text class="chart-axis-text" x="${PAD_L - 6}" y="${baselineY + 3}" text-anchor="end">0</text>`;
       svgInnerHtml += `<text class="chart-axis-text" x="${PAD_L - 6}" y="${PAD_T + 4}" text-anchor="end">${yMax}m</text>`;
-      const goalY = valY(goalMinutes);
-      svgInnerHtml += `<line class="chart-goal-line" x1="${PAD_L}" y1="${goalY}" x2="${VB_W - PAD_R}" y2="${goalY}"/>`;
-      svgInnerHtml += `<text class="chart-goal-label" x="${VB_W - PAD_R}" y="${goalY - 4}" text-anchor="end">Goal · ${goalMinutes}m</text>`;
+      if (goalMinutes > 0) {
+        const goalY = valY(goalMinutes);
+        svgInnerHtml += `<line class="chart-goal-line" x1="${PAD_L}" y1="${goalY}" x2="${VB_W - PAD_R}" y2="${goalY}"/>`;
+        svgInnerHtml += `<text class="chart-goal-label" x="${VB_W - PAD_R}" y="${goalY - 4}" text-anchor="end">Goal · ${goalMinutes}${chartIsCount ? '' : 'm'}</text>`;
+      }
       series.forEach((point, i) => {
         const x = barX(i);
         const dataAttrs = `data-idx="${i}"`;
@@ -3171,7 +3489,9 @@
       }
       xlabels.innerHTML = xLabelHtml.join('');
       const totalMinutes = series.reduce((s, p) => s + p.mins, 0);
-      document.getElementById('statsChartTotalLabel').innerHTML = `<strong>${formatHoursMinutes(totalMinutes)}</strong>`;
+      document.getElementById('statsChartTotalLabel').innerHTML = chartIsCount
+        ? `<strong>${totalMinutes} visit${totalMinutes === 1 ? '' : 's'}</strong>`
+        : `<strong>${formatHoursMinutes(totalMinutes)}</strong>`;
     }
 
     function showStatsChartTooltipForIndex(idx, series) {
@@ -3182,7 +3502,10 @@
       const svg = document.getElementById('statsChartSvg');
       const point = series[idx];
       tooltipDate.textContent = point.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      tooltipValue.textContent = (!point.hasEntry || point.mins === 0) ? 'Missed' : formatHoursMinutes(point.mins);
+      const tooltipIsCount = activityIsCount(getCurrentActivity());
+      tooltipValue.textContent = (!point.hasEntry || point.mins === 0)
+        ? (tooltipIsCount ? 'None' : 'Missed')
+        : (tooltipIsCount ? `${point.mins} visit${point.mins === 1 ? '' : 's'}` : formatHoursMinutes(point.mins));
       const barEl = svg.querySelector(`[data-idx="${idx}"]`);
       if (!barEl) return;
       const barRect = barEl.getBoundingClientRect();
@@ -3214,14 +3537,22 @@
       const firstOfMonth = new Date(year, month, 1);
       const firstWeekday = firstOfMonth.getDay();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const calendarIsCount = currentActivity ? activityIsCount(currentActivity) : false;
       const goalMinutes = currentActivity ? currentActivity.dailyGoalMinutes : 60;
+      // Count activities: a per-day "hit" only exists for daily goals; for weekly/monthly
+      // periods any day with at least one entry shows green (the goal lives at period level).
+      const effectiveCellGoal = calendarIsCount
+        ? (currentActivity.goalPeriod === 'daily' ? goalMinutes : 1)
+        : goalMinutes;
       const today = new Date();
       const grid = document.getElementById('statsCalGrid');
       let html = '';
       for (let i = 0; i < firstWeekday; i++) html += `<div class="cal-cell cal-cell-empty"></div>`;
       for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(year, month, d);
-        const minutes = currentActivity ? getMinutesForDate(currentActivity, date) : null;
+        const minutes = currentActivity
+          ? (calendarIsCount ? getCountForDate(currentActivity, date) : getMinutesForDate(currentActivity, date))
+          : null;
         const isFuture = dateAtMidnight(date) > dateAtMidnight(today);
         const isToday = isSameLocalDate(date, today);
         const dateKey = formatDateKey(date);
@@ -3234,12 +3565,12 @@
         } else if (minutes === 0) {
           cellClass += ' cal-cell-miss';
           durText = '—';
-        } else if (minutes >= goalMinutes) {
+        } else if (minutes >= effectiveCellGoal) {
           cellClass += ' cal-cell-hit';
-          durText = formatHoursMinutesShort(minutes);
+          durText = calendarIsCount ? `${minutes}` : formatHoursMinutesShort(minutes);
         } else {
           cellClass += ' cal-cell-low';
-          durText = formatHoursMinutesShort(minutes);
+          durText = calendarIsCount ? `${minutes}` : formatHoursMinutesShort(minutes);
         }
         if (isToday) cellClass += ' cal-cell-today';
         const tag = (isFuture || minutes == null) ? 'div' : 'button';
@@ -3258,17 +3589,27 @@
       if (!currentActivity) return;
       const [yearStr, monthStr, dayStr] = dateKey.split('-');
       const targetDate = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10) - 1, parseInt(dayStr, 10));
-      const minutes = getMinutesForDate(currentActivity, targetDate) || 0;
+      const dayDetailIsCount = activityIsCount(currentActivity);
+      const minutes = (dayDetailIsCount
+        ? getCountForDate(currentActivity, targetDate)
+        : getMinutesForDate(currentActivity, targetDate)) || 0;
       const goalMinutes = currentActivity.dailyGoalMinutes;
+      // Per-day goal applies to timed activities and daily-period counts; weekly/monthly
+      // count goals live at period level, so any entry that day reads as a hit.
+      const effectiveDayGoal = dayDetailIsCount && currentActivity.goalPeriod !== 'daily' ? 1 : goalMinutes;
       document.getElementById('statsDayDetailDate').textContent = targetDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const totalEl = document.getElementById('statsDayDetailTotal');
-      totalEl.textContent = minutes === 0 ? '0m' : formatHoursMinutes(minutes);
-      totalEl.className = 'day-detail-total ' + (minutes === 0 ? 'miss' : minutes >= goalMinutes ? 'hit' : 'low');
-      const pct = Math.min(100, Math.round((minutes / goalMinutes) * 100));
+      totalEl.textContent = dayDetailIsCount
+        ? `${minutes} visit${minutes === 1 ? '' : 's'}`
+        : (minutes === 0 ? '0m' : formatHoursMinutes(minutes));
+      totalEl.className = 'day-detail-total ' + (minutes === 0 ? 'miss' : minutes >= effectiveDayGoal ? 'hit' : 'low');
+      const pct = Math.min(100, Math.round((minutes / effectiveDayGoal) * 100));
       const fill = document.getElementById('statsDayDetailProgressFill');
       fill.style.width = '0%';
-      fill.style.background = minutes === 0 ? 'var(--color-text-dim)' : minutes >= goalMinutes ? 'var(--color-accent-start-text)' : 'var(--color-warning)';
-      document.getElementById('statsDayDetailGoalText').textContent = `Goal · ${goalMinutes}m`;
+      fill.style.background = minutes === 0 ? 'var(--color-text-dim)' : minutes >= effectiveDayGoal ? 'var(--color-accent-start-text)' : 'var(--color-warning)';
+      document.getElementById('statsDayDetailGoalText').textContent = dayDetailIsCount
+        ? (currentActivity.goalPeriod === 'daily' ? `Goal · ${goalMinutes}/day` : `Goal · ${goalMinutes}/${COUNT_PERIOD_UNITS[currentActivity.goalPeriod] || 'wk'}`)
+        : `Goal · ${goalMinutes}m`;
       document.getElementById('statsDayDetailPctText').textContent = `${pct}%`;
       // Per-day session list: pull all laps recorded that day
       const dayLapList = document.getElementById('statsDayLapList');
@@ -3279,14 +3620,21 @@
           return isSameLocalDate(new Date(lapEntry.recordedAtWallClockMs), targetDate);
         });
       if (lapsOnDay.length === 0) {
-        dayLapList.innerHTML = `<div class="day-empty">No sessions recorded for this day.</div>`;
+        dayLapList.innerHTML = `<div class="day-empty">${dayDetailIsCount ? 'No visits recorded for this day.' : 'No sessions recorded for this day.'}</div>`;
       } else {
         dayLapList.innerHTML = lapsOnDay.map(({ lapEntry, lapIndex }, i) => {
+          const whenDate = new Date(lapEntry.recordedAtWallClockMs);
+          const whenText = whenDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+          if (dayDetailIsCount) {
+            return `<div class="day-lap-row">
+              <span class="day-lap-num">${(i + 1).toString().padStart(2, '0')}</span>
+              <span class="day-lap-when">${whenText}</span>
+              <span class="day-lap-dur">${lapEntry.noteText ? escapeHtmlText(lapEntry.noteText) : '—'}</span>
+            </div>`;
+          }
           const previousSplitMs = lapIndex === 0 ? 0 : currentActivity.laps[lapIndex - 1].splitTimeMs;
           const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
           const lapDurationMinutes = lapDurationMs / 60000;
-          const whenDate = new Date(lapEntry.recordedAtWallClockMs);
-          const whenText = whenDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
           return `<div class="day-lap-row">
             <span class="day-lap-num">${(i + 1).toString().padStart(2, '0')}</span>
             <span class="day-lap-when">${whenText}</span>
@@ -3347,9 +3695,11 @@
       renderStatsHeatmap();
       renderStudyOverview();
       const footerStudyOverall = activityIsStudy(currentActivity) && appState.studyGoalMode === 'overall';
-      document.getElementById('statsFooterGoal').textContent = footerStudyOverall
-        ? `${formatHoursMinutes(appState.studyOverallGoalMinutes)}/day · all subjects`
-        : `${currentActivity.dailyGoalMinutes} min/day`;
+      document.getElementById('statsFooterGoal').textContent = activityIsCount(currentActivity)
+        ? `${currentActivity.dailyGoalMinutes} visits/${COUNT_PERIOD_UNITS[currentActivity.goalPeriod] || 'wk'}`
+        : (footerStudyOverall
+          ? `${formatHoursMinutes(appState.studyOverallGoalMinutes)}/day · all subjects`
+          : `${currentActivity.dailyGoalMinutes} min/day`);
     }
 
     // All-subjects overview + weekly breakdown (only shown when study subjects exist).
@@ -3430,7 +3780,11 @@
       const heatmapScrollContainer = grid.closest('.heatmap-scroll');
       const previousScrollLeft = heatmapScrollContainer ? heatmapScrollContainer.scrollLeft : 0;
       const currentActivity = getCurrentActivity();
+      const heatmapIsCount = currentActivity ? activityIsCount(currentActivity) : false;
       const goalMinutes = currentActivity ? currentActivity.dailyGoalMinutes : 60;
+      const effectiveHeatGoal = heatmapIsCount
+        ? (currentActivity.goalPeriod === 'daily' ? goalMinutes : 1)
+        : goalMinutes;
       const today = dateAtMidnight(new Date());
       // Start 52 weeks back, then rewind to the Sunday of that week so columns align.
       const start = new Date(today);
@@ -3445,10 +3799,13 @@
           if (cursor > today) {
             cellsHtml += `<div class="heatmap-day heat-empty"></div>`;
           } else {
-            const minutes = currentActivity ? getMinutesForDate(currentActivity, cursor) : null;
-            const bucket = heatBucketForMinutes(minutes, goalMinutes);
+            const minutes = currentActivity
+              ? (heatmapIsCount ? getCountForDate(currentActivity, cursor) : getMinutesForDate(currentActivity, cursor))
+              : null;
+            const bucket = heatBucketForMinutes(minutes, effectiveHeatGoal);
             const isToday = isSameLocalDate(cursor, today);
-            const titleMin = minutes == null ? 'no data' : `${Math.round(minutes)} min`;
+            const titleMin = minutes == null ? 'no data'
+              : (heatmapIsCount ? `${minutes} visit${minutes === 1 ? '' : 's'}` : `${Math.round(minutes)} min`);
             cellsHtml += `<div class="heatmap-day ${bucket}${isToday ? ' heatmap-day-today' : ''}" title="${formatDateKey(cursor)} · ${titleMin}"></div>`;
           }
           cursor.setDate(cursor.getDate() + 1);
@@ -3529,6 +3886,9 @@
 
     let statsGoalWheelController = null;
     let studyGoalSheetMode = 'subject'; // the mode currently shown in the open goal sheet
+    let goalSheetIsCount = false;       // whether the open goal sheet edits a count activity
+    let countGoalSheetPeriod = 'weekly';// period selected inside the open goal sheet
+    const COUNT_PERIOD_PHRASES = { daily: 'each day', weekly: 'within the last 7 days', monthly: 'within the last 30 days' };
     function buildStatsGoalCaption(values) {
       const hours = values.hours || 0;
       const minutes = values.minutes || 0;
@@ -3556,6 +3916,15 @@
       const explainerEl = document.getElementById('statsGoalExplainer');
       if (!titleEl || !subtitleEl || !explainerEl) return;
       const currentActivity = getCurrentActivity();
+      if (goalSheetIsCount && currentActivity) {
+        const name = activityDisplayName(currentActivity) || 'this activity';
+        const goalCount = Math.max(0, Math.round(minutes)); // for count sheets, "minutes" carries the count
+        const periodPhrase = COUNT_PERIOD_PHRASES[countGoalSheetPeriod] || COUNT_PERIOD_PHRASES.weekly;
+        titleEl.textContent = `Goal · ${name}`;
+        subtitleEl.textContent = `How many ${name.toLowerCase()} count as a hit.`;
+        explainerEl.innerHTML = `Reach ${goalCount} ${periodPhrase}. Tap +1 each time you complete one.`;
+        return;
+      }
       const studyContext = !!currentActivity && (activityIsStudy(currentActivity) || anyStudyActivityExists());
       const timeText = formatHoursMinutes(Math.max(0, minutes));
       if (!studyContext) {
@@ -3600,6 +3969,38 @@
       if (!currentActivity) return;
       const statsGoalCaption = document.getElementById('statsGoalCaption');
       const statsGoalWheel = document.getElementById('statsGoalWheel');
+      const modeRow = document.getElementById('studyGoalModeRow');
+      const periodRow = document.getElementById('countGoalPeriodRow');
+      const chipsRow = document.getElementById('statsGoalChips');
+      goalSheetIsCount = activityIsCount(currentActivity);
+
+      if (goalSheetIsCount) {
+        // Count activity: one wheel column (a count), a Daily/Weekly/Monthly period
+        // toggle, no time chips.
+        statsGoalWheelController = createWheelPicker(
+          statsGoalWheel,
+          [{ key: 'count', length: 100, pad2: false, unit: '' }],
+          (values) => {
+            statsGoalCaption.textContent = `${values.count || 0}`;
+            updateGoalSheetCopy(values.count || 0);
+          }
+        );
+        modeRow.style.display = 'none';
+        periodRow.style.display = '';
+        chipsRow.style.display = 'none';
+        countGoalSheetPeriod = currentActivity.goalPeriod || 'weekly';
+        periodRow.querySelectorAll('.study-goal-mode-option').forEach(optionButton => {
+          optionButton.classList.toggle('is-selected', optionButton.getAttribute('data-period') === countGoalSheetPeriod);
+        });
+        const initialCount = Math.min(99, Math.max(0, currentActivity.dailyGoalMinutes || 0));
+        statsGoalWheelController.setValues({ count: initialCount });
+        statsGoalCaption.textContent = `${initialCount}`;
+        updateGoalSheetCopy(initialCount);
+        showStatsSheet('statsGoalSheetBackdrop');
+        requestAnimationFrame(() => { if (statsGoalWheelController) statsGoalWheelController.reapply(); });
+        return;
+      }
+
       statsGoalWheelController = createWheelPicker(
         statsGoalWheel,
         [
@@ -3612,8 +4013,9 @@
           updateGoalSheetCopy(wheelValuesToGoalMinutes(values));
         }
       );
+      periodRow.style.display = 'none';
+      chipsRow.style.display = '';
       // Study subjects get the per-subject / overall toggle; others use their own goal.
-      const modeRow = document.getElementById('studyGoalModeRow');
       const studyContext = activityIsStudy(currentActivity) || anyStudyActivityExists();
       if (studyContext) {
         modeRow.style.display = '';
@@ -3641,6 +4043,17 @@
       studyGoalSheetMode = option.getAttribute('data-mode');
       applyStudyGoalSheetMode();
     });
+    // Period toggle for count activities (Daily / Weekly / Monthly).
+    document.getElementById('countGoalPeriodRow').addEventListener('click', (clickEvent) => {
+      const option = clickEvent.target.closest('.study-goal-mode-option');
+      if (!option) return;
+      countGoalSheetPeriod = option.getAttribute('data-period');
+      document.querySelectorAll('#countGoalPeriodRow .study-goal-mode-option').forEach(optionButton => {
+        optionButton.classList.toggle('is-selected', optionButton.getAttribute('data-period') === countGoalSheetPeriod);
+      });
+      const wheelValues = statsGoalWheelController ? statsGoalWheelController.getValues() : { count: 0 };
+      updateGoalSheetCopy(wheelValues.count || 0);
+    });
     function syncStatsGoalChips(value) {
       document.querySelectorAll('#statsGoalChips .goal-chip').forEach(chip => {
         chip.classList.toggle('is-selected', parseInt(chip.getAttribute('data-mins'), 10) === value);
@@ -3660,6 +4073,20 @@
     document.getElementById('statsGoalCancelButton').addEventListener('click', () => hideStatsSheet('statsGoalSheetBackdrop'));
     document.getElementById('statsGoalSaveButton').addEventListener('click', () => {
       const currentActivity = getCurrentActivity();
+      if (goalSheetIsCount && currentActivity) {
+        const wheelValues = statsGoalWheelController ? statsGoalWheelController.getValues() : { count: 0 };
+        const goalCount = Math.min(99, Math.max(0, wheelValues.count || 0));
+        if (goalCount > 0) {
+          currentActivity.dailyGoalMinutes = goalCount; // stores the goal COUNT for count activities
+          currentActivity.goalPeriod = countGoalSheetPeriod;
+          stampActivityModified(currentActivity);
+          persistStateToStorage();
+          renderStatsAll();
+          renderAll();
+        }
+        hideStatsSheet('statsGoalSheetBackdrop');
+        return;
+      }
       const totalMinutes = statsGoalWheelController ? wheelValuesToGoalMinutes(statsGoalWheelController.getValues()) : 0;
       if (totalMinutes > 0 && totalMinutes <= 720 && currentActivity) {
         const studyContext = activityIsStudy(currentActivity) || anyStudyActivityExists();
