@@ -98,6 +98,53 @@
     @media (min-width: 1280px) {
       body { max-width: 820px; }
     }
+    /* ============ Chant cumulative campaign bar ============ */
+    .chant-campaign-section {
+      margin-top: 14px; padding-top: 14px;
+      border-top: 0.5px solid var(--color-border);
+    }
+    .chant-target-presets { display: flex; gap: 8px; margin-top: 8px; }
+    .chant-target-preset {
+      flex: 1; padding: 9px 0; border-radius: 10px;
+      border: 0.5px solid var(--color-border); background: transparent;
+      color: var(--color-text-primary); font-family: var(--font-ui); font-size: 14px; font-weight: 500;
+      cursor: pointer;
+    }
+    .chant-target-preset.is-selected {
+      background: var(--color-accent-active-tab, #0a84ff); color: #fff; border-color: transparent;
+    }
+    .chant-target-input {
+      width: 100%; margin-top: 10px; padding: 10px 12px; box-sizing: border-box;
+      border-radius: 10px; border: 0.5px solid var(--color-border);
+      background: var(--color-surface); color: var(--color-text-primary);
+      font-family: var(--font-ui); font-size: 15px;
+    }
+    .chant-campaign-reset {
+      width: 100%; margin-top: 10px; padding: 9px 0; border-radius: 10px;
+      border: 0.5px solid var(--color-accent-edit, #ff9f0a); background: transparent;
+      color: var(--color-accent-edit, #ff9f0a); font-family: var(--font-ui); font-size: 13.5px; font-weight: 500;
+      cursor: pointer;
+    }
+    .chant-campaign-bar { margin: 10px auto 0; max-width: 320px; width: 100%; }
+    .chant-campaign-track {
+      height: 8px; border-radius: 6px; overflow: hidden;
+      background: var(--color-surface-raised, rgba(255,255,255,0.08));
+    }
+    .chant-campaign-fill {
+      height: 100%; border-radius: 6px;
+      transition: width 0.6s cubic-bezier(0.2, 0.9, 0.3, 1), background 0.6s ease;
+    }
+    .chant-campaign-meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-top: 5px; font-family: var(--font-ui);
+    }
+    .chant-campaign-pct { font-size: 13px; font-weight: 600; }
+    .chant-campaign-count { font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+    .chant-campaign-remaining {
+      margin-top: 1px; font-size: 11.5px; color: var(--color-text-dim, var(--color-text-muted));
+      font-family: var(--font-ui); text-align: right;
+    }
+
     /* ============ Goal-met celebration ============
        A one-time, tasteful moment when today's goal is crossed: a center pill that
        pops in + a small burst of confetti dots (colored from the subject palette).
@@ -1274,6 +1321,7 @@
     </div>
     <div class="session-started-label" id="sessionStartedLabel"></div>
     <div class="daimoku-counter" id="daimokuCounter" style="display:none"></div>
+    <div class="chant-campaign-bar" id="chantCampaignBar" style="display:none"></div>
     <div class="goal-nudge" id="goalNudge"></div>
   </section>
 
@@ -1501,6 +1549,19 @@
         <button class="goal-chip" data-mins="120">2h</button>
       </div>
       <p class="goal-explainer" id="statsGoalExplainer"></p>
+      <div class="chant-campaign-section" id="chantCampaignSection" style="display:none">
+        <div class="study-goal-mode-label">Chant campaign goal (total daimoku)</div>
+        <div class="chant-target-presets" id="chantTargetPresets">
+          <button class="chant-target-preset" data-target="100000">100k</button>
+          <button class="chant-target-preset" data-target="500000">500k</button>
+          <button class="chant-target-preset" data-target="1000000">1M</button>
+          <button class="chant-target-preset" data-target="0">Off</button>
+        </div>
+        <input class="chant-target-input" id="chantTargetInput" type="number" inputmode="numeric"
+               min="0" step="1000" placeholder="Custom total (e.g. 1000000)" />
+        <p class="goal-explainer" id="chantCampaignExplainer"></p>
+        <button class="chant-campaign-reset" id="chantCampaignResetButton" style="display:none">Start a new campaign</button>
+      </div>
       <div class="sheet-actions">
         <button class="sheet-button cancel" id="statsGoalCancelButton">Cancel</button>
         <button class="sheet-button save" id="statsGoalSaveButton">Save</button>
@@ -1555,7 +1616,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.8.2';
+    const APP_VERSION = '2.9.0';
 
     // ============ State ============
     const appState = {
@@ -1587,6 +1648,8 @@
         deletedLapIds: [],                       // tombstones: lapIds deleted, so merge won't resurrect them
         colorTag: null,                          // optional subject color index (study subjects); null = auto by name
         goalPeriod: 'weekly',                    // count activities: goal window 'daily'|'weekly'|'monthly' (ignored for timed)
+        chantTargetTotal: 0,                     // chant activities: cumulative daimoku goal (e.g. 1,000,000); 0 = none
+        campaignStartTotal: 0,                   // chant activities: daimoku total when the current campaign began (reset marker)
       };
     }
 
@@ -1772,6 +1835,10 @@
       sanitized.colorTag = (typeof rawActivity.colorTag === 'number') ? rawActivity.colorTag : null;
       sanitized.goalPeriod = ['daily', 'weekly', 'monthly'].includes(rawActivity.goalPeriod)
         ? rawActivity.goalPeriod : 'weekly';
+      sanitized.chantTargetTotal = (typeof rawActivity.chantTargetTotal === 'number' && rawActivity.chantTargetTotal > 0)
+        ? Math.round(rawActivity.chantTargetTotal) : 0;
+      sanitized.campaignStartTotal = (typeof rawActivity.campaignStartTotal === 'number' && rawActivity.campaignStartTotal > 0)
+        ? Math.round(rawActivity.campaignStartTotal) : 0;
       // Drop any laps that are tombstoned (defensive; merge also enforces this).
       if (sanitized.deletedLapIds.length) {
         const tombstoned = new Set(sanitized.deletedLapIds);
@@ -2296,6 +2363,73 @@
       const daimokuCount = Math.floor(getCurrentTotalElapsedMs() / 1000);
       daimokuCounter.style.display = '';
       daimokuCounter.innerHTML = `${daimokuCount.toLocaleString()} <span class="daimoku-label">Daimoku</span>`;
+      renderChantCampaignBar();
+    }
+
+    // ============ Chant cumulative campaign (1,000,000 daimoku goal) ============
+    // Lifetime daimoku for a chant activity = total tracked seconds across ALL sessions
+    // (1 sec = 1 daimoku), including the live uncommitted segment. Independent of the
+    // daily goal; this is the long-haul cumulative target.
+    function getChantLifetimeDaimoku(activity) {
+      if (!activity) return 0;
+      const committedMs = activity.laps.length > 0
+        ? activity.laps[activity.laps.length - 1].splitTimeMs : 0;
+      const liveMs = getUncommittedSessionMsNow(activity);
+      return Math.floor((committedMs + liveMs) / 1000);
+    }
+
+    // Progress within the CURRENT campaign: lifetime minus the marker dropped at last reset.
+    function getChantCampaignProgress(activity) {
+      const lifetime = getChantLifetimeDaimoku(activity);
+      const campaignStart = activity.campaignStartTotal || 0;
+      return Math.max(0, lifetime - campaignStart);
+    }
+
+    // Fill color climbs with progress so momentum is felt at a glance.
+    function chantProgressColor(fraction) {
+      if (fraction >= 1) return '#ffd60a';        // gold — complete
+      if (fraction >= 0.75) return '#ff9f0a';     // amber — closing in
+      if (fraction >= 0.5) return '#30d158';      // green — past halfway
+      if (fraction >= 0.25) return '#40c8e0';     // teal — underway
+      return '#0a84ff';                            // blue — early
+    }
+
+    function renderChantCampaignBar() {
+      const bar = document.getElementById('chantCampaignBar');
+      if (!bar) return;
+      const currentActivity = getCurrentActivity();
+      // Only for timer-based chant activities with a target set.
+      if (!activityIsChant(currentActivity) || !(currentActivity.chantTargetTotal > 0)) {
+        bar.style.display = 'none';
+        return;
+      }
+      const target = currentActivity.chantTargetTotal;
+      const progress = Math.min(getChantCampaignProgress(currentActivity), target);
+      const fraction = target > 0 ? progress / target : 0;
+      const percentText = (fraction * 100).toFixed(fraction >= 0.1 ? 0 : 1);
+      const remaining = Math.max(0, target - progress);
+      const fillColor = chantProgressColor(fraction);
+      bar.style.display = '';
+      bar.innerHTML = `
+        <div class="chant-campaign-track">
+          <div class="chant-campaign-fill" style="width:${(fraction * 100).toFixed(2)}%;background:${fillColor}"></div>
+        </div>
+        <div class="chant-campaign-meta">
+          <span class="chant-campaign-pct" style="color:${fillColor}">${percentText}%</span>
+          <span class="chant-campaign-count">${progress.toLocaleString()} / ${target.toLocaleString()}</span>
+        </div>
+        <div class="chant-campaign-remaining">${remaining > 0 ? `${remaining.toLocaleString()} to go` : 'Goal reached! 🎉'}</div>
+      `;
+      // Celebrate crossing the campaign target, once per campaign (device-local), keyed by
+      // activity + target so raising the goal or starting a new campaign can celebrate again.
+      if (progress >= target) {
+        const campaignStampKey = `chant-campaign:${currentActivity.activityId}:${target}:${currentActivity.campaignStartTotal || 0}`;
+        if (!hasCelebratedToday(campaignStampKey)) {
+          markCelebratedToday(campaignStampKey);
+          playGoalCelebration(`${activityDisplayName(currentActivity)} campaign complete! 🎉`,
+            `${target.toLocaleString()} daimoku reached`);
+        }
+      }
     }
 
     // In-app goal awareness: today's logged minutes vs the daily goal.
@@ -2606,6 +2740,9 @@
             currentActivity.laps = [];
             currentActivity.nextLapId = 1;
             currentActivity.sessionStartedAtWallClockMs = null;
+            // Lifetime daimoku is now 0, so the campaign marker must reset too (else the
+            // bar would read a stale start point). The target itself is kept.
+            currentActivity.campaignStartTotal = 0;
             commitChange();
           }
         );
@@ -3105,9 +3242,31 @@
       calendarMonth: null,                    // 0-11
     };
 
+    // Spread a wall-clock interval [endMs - durationMs, endMs] across the local calendar
+    // days it covers, adding each day's share (in minutes) into targetMap. A session that
+    // runs 11pm->1am thus puts 1h on the first day and 1h on the next, instead of dumping
+    // the whole block on whichever day the timer happened to be stopped.
+    function addIntervalMinutesByDay(targetMap, endMs, durationMs) {
+      if (!(durationMs > 0) || endMs == null) return;
+      let segmentStartMs = endMs - durationMs;
+      // Walk forward day by day from the start until we reach the end timestamp.
+      while (segmentStartMs < endMs) {
+        const dayStart = new Date(segmentStartMs);
+        const nextMidnightMs = dateAtMidnight(dayStart).getTime() + 86400000;
+        const sliceEndMs = Math.min(endMs, nextMidnightMs);
+        const sliceMs = sliceEndMs - segmentStartMs;
+        if (sliceMs > 0) {
+          const dateKey = formatDateKey(new Date(segmentStartMs));
+          targetMap[dateKey] = (targetMap[dateKey] || 0) + sliceMs / 60000;
+        }
+        segmentStartMs = sliceEndMs;
+      }
+    }
+
     function getActivityLapDailyTotalsMinutes(activity) {
-      // Returns { 'YYYY-MM-DD': minutes } summing each lap's duration on the calendar day
-      // of its recordedAtWallClockMs (local time). Laps with null timestamps are skipped.
+      // Returns { 'YYYY-MM-DD': minutes }. Each lap's duration is attributed to the actual
+      // local day(s) its wall-clock interval spanned (splitting at midnight), using the
+      // lap's recordedAtWallClockMs as the interval END. Laps with null timestamps skipped.
       const dailyMap = {};
       if (!activity) return dailyMap;
       const laps = activity.laps;
@@ -3116,9 +3275,7 @@
         if (lapEntry.recordedAtWallClockMs == null) continue;
         const previousSplitMs = lapIndex === 0 ? 0 : laps[lapIndex - 1].splitTimeMs;
         const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
-        const dateObject = new Date(lapEntry.recordedAtWallClockMs);
-        const dateKey = formatDateKey(dateObject);
-        dailyMap[dateKey] = (dailyMap[dateKey] || 0) + lapDurationMs / 60000;
+        addIntervalMinutesByDay(dailyMap, lapEntry.recordedAtWallClockMs, lapDurationMs);
       }
       return dailyMap;
     }
@@ -3168,16 +3325,22 @@
     function getMinutesForDate(activity, dateObject) {
       // Returns null if before tracking started for this activity; otherwise minutes (>=0).
       // Live: the uncommitted session (running or paused-but-not-yet-committed) counts
-      // toward TODAY, so "Today", charts, nudge, and streak update in real time.
-      const uncommittedTodayMinutes = isSameLocalDate(dateObject, new Date())
-        ? getUncommittedSessionMsNow(activity) / 60000 : 0;
+      // toward the day(s) it actually spans, so a session running across midnight adds only
+      // its post-midnight slice to "today" and its pre-midnight slice to yesterday.
+      const uncommittedMs = getUncommittedSessionMsNow(activity);
+      let uncommittedMinutesForDate = 0;
+      if (uncommittedMs > 0) {
+        const liveByDay = {};
+        addIntervalMinutesByDay(liveByDay, Date.now(), uncommittedMs);
+        uncommittedMinutesForDate = liveByDay[formatDateKey(dateObject)] || 0;
+      }
       const earliestTrackingDate = getEarliestTrackingDate(activity);
-      if (!earliestTrackingDate) return uncommittedTodayMinutes > 0 ? uncommittedTodayMinutes : null;
+      if (!earliestTrackingDate) return uncommittedMinutesForDate > 0 ? uncommittedMinutesForDate : null;
       const earliestMidnight = dateAtMidnight(earliestTrackingDate);
       const candidateMidnight = dateAtMidnight(dateObject);
-      if (candidateMidnight < earliestMidnight && uncommittedTodayMinutes <= 0) return null;
+      if (candidateMidnight < earliestMidnight && uncommittedMinutesForDate <= 0) return null;
       const dailyMap = getActivityLapDailyTotalsMinutes(activity);
-      return (dailyMap[formatDateKey(dateObject)] || 0) + uncommittedTodayMinutes;
+      return (dailyMap[formatDateKey(dateObject)] || 0) + uncommittedMinutesForDate;
     }
 
     function formatHoursMinutes(totalMinutes) {
@@ -3964,6 +4127,75 @@
       syncStatsGoalChips(minutes);
     }
 
+    // The chant campaign target chosen in the open goal sheet (applied on Save).
+    let chantCampaignPendingTarget = 0;
+    function refreshChantTargetPresetSelection() {
+      const presets = document.getElementById('chantTargetPresets');
+      if (!presets) return;
+      presets.querySelectorAll('.chant-target-preset').forEach(btn => {
+        btn.classList.toggle('is-selected', Number(btn.getAttribute('data-target')) === chantCampaignPendingTarget);
+      });
+    }
+    function refreshChantCampaignExplainer(activity) {
+      const explainer = document.getElementById('chantCampaignExplainer');
+      const resetButton = document.getElementById('chantCampaignResetButton');
+      if (!explainer || !resetButton) return;
+      const progress = getChantCampaignProgress(activity);
+      if (chantCampaignPendingTarget > 0) {
+        const pct = Math.min(100, Math.round((progress / chantCampaignPendingTarget) * 100));
+        explainer.textContent = `Progress bar fills toward ${chantCampaignPendingTarget.toLocaleString()} daimoku. Currently ${progress.toLocaleString()} (${pct}%).`;
+        resetButton.style.display = progress > 0 ? '' : 'none';
+      } else {
+        explainer.textContent = 'No campaign goal — the progress bar stays hidden.';
+        resetButton.style.display = 'none';
+      }
+    }
+    function setupChantCampaignSection(activity) {
+      const section = document.getElementById('chantCampaignSection');
+      if (!section) return;
+      if (!activityIsChant(activity)) { section.style.display = 'none'; return; }
+      section.style.display = '';
+      chantCampaignPendingTarget = activity.chantTargetTotal || 0;
+      const input = document.getElementById('chantTargetInput');
+      input.value = chantCampaignPendingTarget > 0 ? String(chantCampaignPendingTarget) : '';
+      refreshChantTargetPresetSelection();
+      refreshChantCampaignExplainer(activity);
+    }
+
+    document.getElementById('chantTargetPresets').addEventListener('click', (clickEvent) => {
+      const preset = clickEvent.target.closest('.chant-target-preset');
+      if (!preset) return;
+      chantCampaignPendingTarget = Number(preset.getAttribute('data-target')) || 0;
+      const input = document.getElementById('chantTargetInput');
+      input.value = chantCampaignPendingTarget > 0 ? String(chantCampaignPendingTarget) : '';
+      refreshChantTargetPresetSelection();
+      refreshChantCampaignExplainer(getCurrentActivity());
+    });
+    document.getElementById('chantTargetInput').addEventListener('input', (inputEvent) => {
+      const parsed = Math.max(0, Math.floor(Number(inputEvent.target.value) || 0));
+      chantCampaignPendingTarget = parsed;
+      refreshChantTargetPresetSelection();
+      refreshChantCampaignExplainer(getCurrentActivity());
+    });
+    // Start a new campaign: drop a marker at the current lifetime total so the bar
+    // re-zeros, WITHOUT deleting any sessions/time. Confirmed before applying.
+    document.getElementById('chantCampaignResetButton').addEventListener('click', () => {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || !activityIsChant(currentActivity)) return;
+      openConfirmModal(
+        'Start New Campaign',
+        'Start a new campaign? The progress bar resets to 0%. Your session history and total time are kept.',
+        'Start new',
+        () => {
+          currentActivity.campaignStartTotal = getChantLifetimeDaimoku(currentActivity);
+          stampActivityModified(currentActivity);
+          persistStateToStorage();
+          refreshChantCampaignExplainer(currentActivity);
+          renderAll();
+        }
+      );
+    });
+
     document.getElementById('statsFooterEditButton').addEventListener('click', () => {
       const currentActivity = getCurrentActivity();
       if (!currentActivity) return;
@@ -3988,6 +4220,7 @@
         modeRow.style.display = 'none';
         periodRow.style.display = '';
         chipsRow.style.display = 'none';
+        document.getElementById('chantCampaignSection').style.display = 'none';
         countGoalSheetPeriod = currentActivity.goalPeriod || 'weekly';
         periodRow.querySelectorAll('.study-goal-mode-option').forEach(optionButton => {
           optionButton.classList.toggle('is-selected', optionButton.getAttribute('data-period') === countGoalSheetPeriod);
@@ -4033,6 +4266,8 @@
       statsGoalCaption.textContent = buildStatsGoalCaption(initialValues);
       updateGoalSheetCopy(initialMinutes);
       syncStatsGoalChips(initialMinutes);
+      // Chant activities also get the cumulative-campaign target controls below the daily goal.
+      setupChantCampaignSection(currentActivity);
       showStatsSheet('statsGoalSheetBackdrop');
       requestAnimationFrame(() => { if (statsGoalWheelController) statsGoalWheelController.reapply(); });
     });
@@ -4103,10 +4338,24 @@
           currentActivity.dailyGoalMinutes = totalMinutes;
           stampActivityModified(currentActivity);
         }
-        persistStateToStorage();
-        renderStatsAll();
-        renderGoalNudge();
       }
+      // Chant campaign target applies independently of the daily goal (a chant user may
+      // change only the big total). Setting a new target for the first time also drops the
+      // campaign start marker at the current lifetime so progress begins from "now".
+      if (currentActivity && activityIsChant(currentActivity)) {
+        const previousTarget = currentActivity.chantTargetTotal || 0;
+        if (chantCampaignPendingTarget !== previousTarget) {
+          if (chantCampaignPendingTarget > 0 && previousTarget === 0 && (currentActivity.campaignStartTotal || 0) === 0) {
+            currentActivity.campaignStartTotal = getChantLifetimeDaimoku(currentActivity);
+          }
+          currentActivity.chantTargetTotal = chantCampaignPendingTarget;
+          stampActivityModified(currentActivity);
+        }
+      }
+      persistStateToStorage();
+      renderStatsAll();
+      renderGoalNudge();
+      renderDaimokuCounter();
       hideStatsSheet('statsGoalSheetBackdrop');
     });
 
