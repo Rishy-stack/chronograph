@@ -1616,7 +1616,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.9.0';
+    const APP_VERSION = '2.9.1';
 
     // ============ State ============
     const appState = {
@@ -2362,7 +2362,7 @@
       if (!activityIsChant(currentActivity)) { daimokuCounter.style.display = 'none'; return; }
       const daimokuCount = Math.floor(getCurrentTotalElapsedMs() / 1000);
       daimokuCounter.style.display = '';
-      daimokuCounter.innerHTML = `${daimokuCount.toLocaleString()} <span class="daimoku-label">Daimoku</span>`;
+      daimokuCounter.innerHTML = `${formatGroupedNumber(daimokuCount)} <span class="daimoku-label">Daimoku</span>`;
       renderChantCampaignBar();
     }
 
@@ -2394,6 +2394,28 @@
       return '#0a84ff';                            // blue — early
     }
 
+    // Always group thousands with commas regardless of device locale (avoids the Indian
+    // lakh grouping "10,00,000" that toLocaleString produces on some phones).
+    function formatGroupedNumber(value) {
+      return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    // Compact form for big targets: 1000000 -> "1M", 500000 -> "500K", 100000 -> "100K".
+    function formatCompactNumber(value) {
+      const n = Math.round(value);
+      if (n >= 1000000 && n % 100000 === 0) return (n / 1000000).toString().replace(/\.0$/, '') + 'M';
+      if (n >= 1000 && n % 1000 === 0) return (n / 1000) + 'K';
+      return formatGroupedNumber(n);
+    }
+    // Percent that stays meaningful at million-scale: more decimals when tiny, fewer when large.
+    function formatCampaignPercent(fraction) {
+      const pct = fraction * 100;
+      if (pct <= 0) return '0%';
+      if (pct >= 10) return pct.toFixed(0) + '%';
+      if (pct >= 1) return pct.toFixed(1) + '%';
+      if (pct >= 0.01) return pct.toFixed(2) + '%';
+      return pct.toFixed(3) + '%'; // e.g. 6 / 1,000,000 -> 0.001% instead of a stuck "0.0%"
+    }
+
     function renderChantCampaignBar() {
       const bar = document.getElementById('chantCampaignBar');
       if (!bar) return;
@@ -2406,7 +2428,7 @@
       const target = currentActivity.chantTargetTotal;
       const progress = Math.min(getChantCampaignProgress(currentActivity), target);
       const fraction = target > 0 ? progress / target : 0;
-      const percentText = (fraction * 100).toFixed(fraction >= 0.1 ? 0 : 1);
+      const percentText = formatCampaignPercent(fraction);
       const remaining = Math.max(0, target - progress);
       const fillColor = chantProgressColor(fraction);
       bar.style.display = '';
@@ -2415,10 +2437,10 @@
           <div class="chant-campaign-fill" style="width:${(fraction * 100).toFixed(2)}%;background:${fillColor}"></div>
         </div>
         <div class="chant-campaign-meta">
-          <span class="chant-campaign-pct" style="color:${fillColor}">${percentText}%</span>
-          <span class="chant-campaign-count">${progress.toLocaleString()} / ${target.toLocaleString()}</span>
+          <span class="chant-campaign-pct" style="color:${fillColor}">${percentText}</span>
+          <span class="chant-campaign-count">${formatGroupedNumber(progress)} / ${formatCompactNumber(target)}</span>
         </div>
-        <div class="chant-campaign-remaining">${remaining > 0 ? `${remaining.toLocaleString()} to go` : 'Goal reached! 🎉'}</div>
+        <div class="chant-campaign-remaining">${remaining > 0 ? `${formatGroupedNumber(remaining)} to go` : 'Goal reached! 🎉'}</div>
       `;
       // Celebrate crossing the campaign target, once per campaign (device-local), keyed by
       // activity + target so raising the goal or starting a new campaign can celebrate again.
@@ -2427,7 +2449,7 @@
         if (!hasCelebratedToday(campaignStampKey)) {
           markCelebratedToday(campaignStampKey);
           playGoalCelebration(`${activityDisplayName(currentActivity)} campaign complete! 🎉`,
-            `${target.toLocaleString()} daimoku reached`);
+            `${formatGroupedNumber(target)} daimoku reached`);
         }
       }
     }
@@ -4143,7 +4165,7 @@
       const progress = getChantCampaignProgress(activity);
       if (chantCampaignPendingTarget > 0) {
         const pct = Math.min(100, Math.round((progress / chantCampaignPendingTarget) * 100));
-        explainer.textContent = `Progress bar fills toward ${chantCampaignPendingTarget.toLocaleString()} daimoku. Currently ${progress.toLocaleString()} (${pct}%).`;
+        explainer.textContent = `Progress bar fills toward ${formatGroupedNumber(chantCampaignPendingTarget)} daimoku. Currently ${formatGroupedNumber(progress)} (${pct}%).`;
         resetButton.style.display = progress > 0 ? '' : 'none';
       } else {
         explainer.textContent = 'No campaign goal — the progress bar stays hidden.';
