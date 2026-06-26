@@ -119,6 +119,12 @@
       background: var(--color-surface); color: var(--color-text-primary);
       font-family: var(--font-ui); font-size: 15px;
     }
+    .chant-campaign-reset {
+      width: 100%; margin-top: 10px; padding: 9px 0; border-radius: 10px;
+      border: 0.5px solid var(--color-accent-edit, #ff9f0a); background: transparent;
+      color: var(--color-accent-edit, #ff9f0a); font-family: var(--font-ui); font-size: 13.5px; font-weight: 500;
+      cursor: pointer;
+    }
     .chant-campaign-bar { margin: 10px auto 0; max-width: 320px; width: 100%; }
     .chant-campaign-track {
       height: 8px; border-radius: 6px; overflow: hidden;
@@ -1554,6 +1560,7 @@
         <input class="chant-target-input" id="chantTargetInput" type="number" inputmode="numeric"
                min="0" step="1000" placeholder="Custom total (e.g. 1000000)" />
         <p class="goal-explainer" id="chantCampaignExplainer"></p>
+        <button class="chant-campaign-reset" id="chantCampaignResetButton" style="display:none">Start a new campaign</button>
       </div>
       <div class="sheet-actions">
         <button class="sheet-button cancel" id="statsGoalCancelButton">Cancel</button>
@@ -1609,7 +1616,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.10.0';
+    const APP_VERSION = '2.10.1';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -1646,7 +1653,7 @@
         colorTag: null,                          // optional subject color index (study subjects); null = auto by name
         goalPeriod: 'weekly',                    // count activities: goal window 'daily'|'weekly'|'monthly' (ignored for timed)
         chantTargetTotal: 0,                     // chant activities: cumulative daimoku goal (e.g. 1,000,000); 0 = none
-        campaignStartTotal: 0,                   // retained for sync compat; progress now always counts full lifetime
+        campaignStartTotal: 0,                   // chant activities: daimoku total when the current campaign began (reset marker)
       };
     }
 
@@ -1834,11 +1841,8 @@
         ? rawActivity.goalPeriod : 'weekly';
       sanitized.chantTargetTotal = (typeof rawActivity.chantTargetTotal === 'number' && rawActivity.chantTargetTotal > 0)
         ? Math.round(rawActivity.chantTargetTotal) : 0;
-      // Campaign progress now counts full lifetime toward the target. Earlier builds
-      // auto-set this marker to the lifetime-at-target-time, which made the bar read ~0.
-      // Force it to 0 so the bar reflects the true total; the manual "new campaign" reset
-      // can set it again intentionally. (One-way migration; safe because user wants total.)
-      sanitized.campaignStartTotal = 0;
+      sanitized.campaignStartTotal = (typeof rawActivity.campaignStartTotal === 'number' && rawActivity.campaignStartTotal > 0)
+        ? Math.round(rawActivity.campaignStartTotal) : 0;
       // Drop any laps that are tombstoned (defensive; merge also enforces this).
       if (sanitized.deletedLapIds.length) {
         const tombstoned = new Set(sanitized.deletedLapIds);
@@ -2380,9 +2384,9 @@
 
     // Progress within the CURRENT campaign: lifetime minus the marker dropped at last reset.
     function getChantCampaignProgress(activity) {
-      // Progress = LIFETIME daimoku total toward the goal, so 60,069 of a 100K goal reads
-      // as ~60%. Simple and matches expectation: the bar shows your real total vs target.
-      return getChantLifetimeDaimoku(activity);
+      const lifetime = getChantLifetimeDaimoku(activity);
+      const campaignStart = activity.campaignStartTotal || 0;
+      return Math.max(0, lifetime - campaignStart);
     }
 
     // Fill color climbs with progress so momentum is felt at a glance.
@@ -2445,7 +2449,7 @@
       // Celebrate crossing the campaign target, once per campaign (device-local), keyed by
       // activity + target so raising the goal or starting a new campaign can celebrate again.
       if (progress >= target) {
-        const campaignStampKey = `chant-campaign:${currentActivity.activityId}:${target}`;
+        const campaignStampKey = `chant-campaign:${currentActivity.activityId}:${target}:${currentActivity.campaignStartTotal || 0}`;
         if (!hasCelebratedToday(campaignStampKey)) {
           markCelebratedToday(campaignStampKey);
           playGoalCelebration(`${activityDisplayName(currentActivity)} campaign complete! 🎉`,
@@ -2776,7 +2780,9 @@
             currentActivity.laps = [];
             currentActivity.nextLapId = 1;
             currentActivity.sessionStartedAtWallClockMs = null;
-            currentActivity.campaignStartTotal = 0; // keep at 0 (progress counts full lifetime)
+            // Lifetime daimoku is now 0, so the campaign marker must reset too (else the
+            // bar would read a stale start point). The target itself is kept.
+            currentActivity.campaignStartTotal = 0;
             commitChange();
           }
         );
@@ -4172,13 +4178,16 @@
     }
     function refreshChantCampaignExplainer(activity) {
       const explainer = document.getElementById('chantCampaignExplainer');
-      if (!explainer) return;
+      const resetButton = document.getElementById('chantCampaignResetButton');
+      if (!explainer || !resetButton) return;
       const progress = getChantCampaignProgress(activity);
       if (chantCampaignPendingTarget > 0) {
         const pct = Math.min(100, Math.round((progress / chantCampaignPendingTarget) * 100));
-        explainer.textContent = `Progress bar fills with your total daimoku toward ${formatGroupedNumber(chantCampaignPendingTarget)}. Currently ${formatGroupedNumber(progress)} (${pct}%).`;
+        explainer.textContent = `Progress bar fills toward ${formatGroupedNumber(chantCampaignPendingTarget)} daimoku. Currently ${formatGroupedNumber(progress)} (${pct}%).`;
+        resetButton.style.display = progress > 0 ? '' : 'none';
       } else {
         explainer.textContent = 'No campaign goal — the progress bar stays hidden.';
+        resetButton.style.display = 'none';
       }
     }
     function setupChantCampaignSection(activity) {
@@ -4207,6 +4216,24 @@
       chantCampaignPendingTarget = parsed;
       refreshChantTargetPresetSelection();
       refreshChantCampaignExplainer(getCurrentActivity());
+    });
+    // Start a new campaign: drop a marker at the current lifetime total so the bar
+    // re-zeros, WITHOUT deleting any sessions/time. Confirmed before applying.
+    document.getElementById('chantCampaignResetButton').addEventListener('click', () => {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || !activityIsChant(currentActivity)) return;
+      openConfirmModal(
+        'Start New Campaign',
+        'Start a new campaign? The progress bar resets to 0%. Your session history and total time are kept.',
+        'Start new',
+        () => {
+          currentActivity.campaignStartTotal = getChantLifetimeDaimoku(currentActivity);
+          stampActivityModified(currentActivity);
+          persistStateToStorage();
+          refreshChantCampaignExplainer(currentActivity);
+          renderAll();
+        }
+      );
     });
 
     document.getElementById('statsFooterEditButton').addEventListener('click', () => {
@@ -4353,11 +4380,14 @@
         }
       }
       // Chant campaign target applies independently of the daily goal (a chant user may
-      // change only the big total). Progress counts the FULL lifetime toward the target by
-      // default (marker stays 0); the user can later choose "Start a new campaign" to offset.
+      // change only the big total). Setting a new target for the first time also drops the
+      // campaign start marker at the current lifetime so progress begins from "now".
       if (currentActivity && activityIsChant(currentActivity)) {
         const previousTarget = currentActivity.chantTargetTotal || 0;
         if (chantCampaignPendingTarget !== previousTarget) {
+          if (chantCampaignPendingTarget > 0 && previousTarget === 0 && (currentActivity.campaignStartTotal || 0) === 0) {
+            currentActivity.campaignStartTotal = getChantLifetimeDaimoku(currentActivity);
+          }
           currentActivity.chantTargetTotal = chantCampaignPendingTarget;
           stampActivityModified(currentActivity);
         }
