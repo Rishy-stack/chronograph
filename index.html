@@ -375,7 +375,7 @@
       background: var(--color-accent-stop-bg);
       color: var(--color-accent-stop-text);
     }
-    .control-button.secondary-action { color: var(--color-text-primary); }
+    .control-button.secondary-action { color: var(--color-text-primary); white-space: normal; line-height: 1.1; padding: 0 4px; }
     .control-button.secondary-action:disabled { color: var(--color-text-dim); opacity: 1; cursor: not-allowed; }
 
     /* === Laps === */
@@ -1320,7 +1320,7 @@
   </section>
 
   <section class="controls-section">
-    <button class="control-button secondary-action" id="lapResetButton" disabled>Log</button>
+    <button class="control-button secondary-action" id="lapResetButton" disabled>New session</button>
     <button class="control-button primary-action" id="startStopButton">Start</button>
   </section>
 
@@ -1609,7 +1609,11 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.9.2';
+    const APP_VERSION = '2.10.0';
+
+    // Timed sessions shorter than this are treated as accidental taps and not logged as their
+    // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
+    const AUTO_COMMIT_THRESHOLD_MS = 5000;
 
     // ============ State ============
     const appState = {
@@ -2161,13 +2165,13 @@
       if (currentActivity.isRunning) {
         startStopButton.textContent = 'Stop';
         startStopButton.classList.add('is-stop-state');
-        lapResetButton.textContent = 'Log';
+        lapResetButton.textContent = 'New session';
         lapResetButton.disabled = false;
       } else {
         startStopButton.textContent = 'Start';
         startStopButton.classList.remove('is-stop-state');
         const hasAnyTime = currentActivity.accumulatedBeforeSegmentMs > 0 || currentActivity.laps.length > 0;
-        lapResetButton.textContent = hasAnyTime ? 'Reset' : 'Log';
+        lapResetButton.textContent = hasAnyTime ? 'Reset' : 'New session';
         lapResetButton.disabled = !hasAnyTime;
       }
     }
@@ -2705,7 +2709,6 @@
         currentActivity.isRunning = false;
         // Item 4: auto-commit the time since the last lap as a session, so stats
         // capture the work without needing a manual Lap press. Ignore tiny segments.
-        const AUTO_COMMIT_THRESHOLD_MS = 5000;
         const lastCommittedSplitMs = currentActivity.laps.length > 0
           ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs
           : 0;
@@ -2735,13 +2738,28 @@
       if (!currentActivity) return;
       if (activityIsCount(currentActivity)) { undoLastCountEntry(); return; } // "Undo" removes last visit
       if (currentActivity.isRunning) {
-        const currentTotalMs = getCurrentTotalElapsedMs();
-        currentActivity.laps.push({
-          lapId: currentActivity.nextLapId++,
-          splitTimeMs: currentTotalMs,
-          recordedAtWallClockMs: Date.now(),
-          lastModifiedMs: Date.now(),
-        });
+        // "New session": bank the current live segment into the grand total and restart the
+        // segment at 0, so the live segment can never grow into a multi-week block. That giant
+        // ever-running segment was the root of the cross-device sync balloon — a stale, very old
+        // segmentStartTimestamp on one device could win the merge and add hundreds of hours.
+        // Banking keeps the live segment small while the grand total is unchanged; committed
+        // sessions live in laps, which merge cleanly by lapId.
+        const totalAtBankMs = getCurrentTotalElapsedMs();
+        const lastCommittedSplitMs = currentActivity.laps.length > 0
+          ? currentActivity.laps[currentActivity.laps.length - 1].splitTimeMs
+          : 0;
+        const uncommittedDurationMs = totalAtBankMs - lastCommittedSplitMs;
+        if (uncommittedDurationMs >= AUTO_COMMIT_THRESHOLD_MS) {
+          currentActivity.laps.push({
+            lapId: currentActivity.nextLapId++,
+            splitTimeMs: totalAtBankMs,
+            recordedAtWallClockMs: Date.now(),
+            lastModifiedMs: Date.now(),
+          });
+        }
+        currentActivity.accumulatedBeforeSegmentMs = totalAtBankMs;
+        currentActivity.segmentStartTimestamp = Date.now();
+        // isRunning stays true — a fresh session begins immediately.
         stampActivityModified(currentActivity);
         commitChange();
       } else {
