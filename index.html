@@ -1616,7 +1616,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.10.1';
+    const APP_VERSION = '2.10.2';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -2376,10 +2376,14 @@
     // daily goal; this is the long-haul cumulative target.
     function getChantLifetimeDaimoku(activity) {
       if (!activity) return 0;
-      const committedMs = activity.laps.length > 0
-        ? activity.laps[activity.laps.length - 1].splitTimeMs : 0;
-      const liveMs = getUncommittedSessionMsNow(activity);
-      return Math.floor((committedMs + liveMs) / 1000);
+      // Lifetime = the activity's canonical banked total (+ live segment) — the SAME source as the
+      // big timer and the Daimoku counter (getCurrentTotalElapsedMs). This previously summed the
+      // last lap's cumulative split instead, which could drift ABOVE the banked total after a
+      // cross-device merge duplicated sessions, making the campaign bar read higher than the real
+      // count. Keying off accumulatedBeforeSegmentMs keeps bar, counter, and big number in agreement.
+      const liveMs = (activity.isRunning && typeof activity.segmentStartTimestamp === 'number')
+        ? Date.now() - activity.segmentStartTimestamp : 0;
+      return Math.floor((activity.accumulatedBeforeSegmentMs + liveMs) / 1000);
     }
 
     // Progress within the CURRENT campaign: lifetime minus the marker dropped at last reset.
