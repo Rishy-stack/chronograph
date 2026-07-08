@@ -205,6 +205,7 @@
     @media (orientation: landscape) and (max-height: 520px) {
       body { max-width: 640px; }
       .timer-display-value { font-size: clamp(44px, 11vh, 64px); }
+      .timer-big-mode-label { font-size: 10px; margin-bottom: 6px; min-height: 12px; }
       .timer-display-section { padding-top: 8px; padding-bottom: 6px; }
       .activity-tabs-section { padding-top: 6px; padding-bottom: 4px; }
       .control-button { width: 60px; height: 60px; font-size: 14px; }
@@ -320,6 +321,17 @@
       padding: 24px 24px 20px;
     }
 
+    .timer-big-mode-label {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--color-text-muted);
+      text-align: center;
+      margin-bottom: 10px;
+      min-height: 13px;
+    }
+
     .timer-display-value {
       font-family: var(--font-display);
       font-weight: 200;
@@ -329,6 +341,10 @@
       text-align: center;
       line-height: 1;
       font-variant-numeric: tabular-nums;
+    }
+
+    .timer-display-value.is-tappable {
+      cursor: pointer;
     }
 
     .timer-display-value .digits-centiseconds {
@@ -1316,6 +1332,7 @@
   </section>
 
   <section class="timer-display-section">
+    <div class="timer-big-mode-label" id="timerBigModeLabel"></div>
     <div class="timer-display-value" id="timerDisplayValue">
       00:00<span class="digits-centiseconds">.00</span>
     </div>
@@ -1616,11 +1633,33 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.10.2';
+    const APP_VERSION = '2.11.0';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
     const AUTO_COMMIT_THRESHOLD_MS = 5000;
+
+    // Big-number display mode for timer (non-count) activities: the central number shows
+    // today's total (default), the live running session, or the all-time total since reset.
+    // Cycled by tapping the number; persisted per-device only (not part of synced state).
+    const TIMER_BIG_MODE_STORAGE_KEY = 'chronograph:timerBigMode:v1';
+    const TIMER_BIG_MODES = ['today', 'session', 'alltime'];
+    const TIMER_BIG_MODE_LABELS = { today: 'TODAY', session: 'THIS SESSION', alltime: 'ALL-TIME' };
+
+    function loadTimerBigMode() {
+      try {
+        const storedMode = localStorage.getItem(TIMER_BIG_MODE_STORAGE_KEY);
+        return TIMER_BIG_MODES.includes(storedMode) ? storedMode : 'today';
+      } catch (storageError) {
+        return 'today';
+      }
+    }
+
+    function saveTimerBigMode(modeToSave) {
+      try { localStorage.setItem(TIMER_BIG_MODE_STORAGE_KEY, modeToSave); } catch (storageError) { /* storage unavailable */ }
+    }
+
+    let timerBigMode = loadTimerBigMode();
 
     // ============ State ============
     const appState = {
@@ -1928,6 +1967,7 @@
     const moveActivityLeftButton = document.getElementById('moveActivityLeftButton');
     const moveActivityRightButton = document.getElementById('moveActivityRightButton');
     const timerDisplayValue = document.getElementById('timerDisplayValue');
+    const timerBigModeLabel = document.getElementById('timerBigModeLabel');
     const sessionStartedLabel = document.getElementById('sessionStartedLabel');
     const startStopButton = document.getElementById('startStopButton');
     const lapResetButton = document.getElementById('lapResetButton');
@@ -2125,16 +2165,65 @@
       }
     }
 
+    // F1: the big number can change at midnight even while idle (TODAY mode rolls to the
+    // new day; count activities show today's count). Track the local date of the last
+    // render so the animation tick can refresh once the date flips.
+    let lastTimerDisplayRenderDateKey = null;
+    let lastIdleRenderCheckSecond = null;
+    let lastIdleStatsRenderDateKey = null;
+
     function renderTimerDisplay() {
+      lastTimerDisplayRenderDateKey = formatDateKey(new Date());
       const currentActivity = getCurrentActivity();
       if (currentActivity && activityIsCount(currentActivity)) {
         const todayCount = getCountForDate(currentActivity, new Date()) || 0;
         timerDisplayValue.innerHTML = `${todayCount}<span class="digits-centiseconds"> today</span>`;
+        timerBigModeLabel.style.visibility = 'hidden';
+        timerDisplayValue.classList.remove('is-tappable');
+        timerDisplayValue.removeAttribute('role');
+        timerDisplayValue.removeAttribute('tabindex');
+        timerDisplayValue.removeAttribute('aria-label');
         return;
       }
-      const totalElapsedMs = getCurrentTotalElapsedMs();
-      const formatted = formatElapsedTimeForDisplay(totalElapsedMs, true);
+      // Timer activities: the big number shows one of three views, cycled by tapping it.
+      // 'today' is midnight-split aware (getMinutesForDate includes the live segment's
+      // post-midnight slice only); 'session' is the live running segment since Start
+      // (0 when idle); 'alltime' is the old total-since-reset hero.
+      let bigNumberMs = 0;
+      if (timerBigMode === 'session') {
+        bigNumberMs = (currentActivity && currentActivity.isRunning && currentActivity.segmentStartTimestamp !== null)
+          ? Date.now() - currentActivity.segmentStartTimestamp
+          : 0;
+      } else if (timerBigMode === 'alltime') {
+        bigNumberMs = getCurrentTotalElapsedMs();
+      } else {
+        bigNumberMs = currentActivity ? ((getMinutesForDate(currentActivity, new Date()) || 0) * 60000) : 0;
+      }
+      const formatted = formatElapsedTimeForDisplay(bigNumberMs, true);
       timerDisplayValue.innerHTML = `${formatted.mainPart}<span class="digits-centiseconds">.${formatted.centiPart}</span>`;
+      const activeModeLabel = TIMER_BIG_MODE_LABELS[timerBigMode] || TIMER_BIG_MODE_LABELS.today;
+      // N1: these run per animation frame while running — only touch the DOM when a
+      // value actually changed, to avoid needless attribute mutation churn.
+      if (timerBigModeLabel.textContent !== activeModeLabel) timerBigModeLabel.textContent = activeModeLabel;
+      timerBigModeLabel.style.visibility = '';
+      timerDisplayValue.classList.add('is-tappable');
+      if (timerDisplayValue.getAttribute('role') !== 'button') {
+        timerDisplayValue.setAttribute('role', 'button');
+        timerDisplayValue.setAttribute('tabindex', '0');
+      }
+      const bigModeAriaLabel = `Big number view: ${activeModeLabel}. Tap to change view`;
+      if (timerDisplayValue.getAttribute('aria-label') !== bigModeAriaLabel) {
+        timerDisplayValue.setAttribute('aria-label', bigModeAriaLabel);
+      }
+    }
+
+    function handleTimerBigModeCycleTap() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || activityIsCount(currentActivity)) return;
+      const currentModeIndex = TIMER_BIG_MODES.indexOf(timerBigMode);
+      timerBigMode = TIMER_BIG_MODES[(currentModeIndex + 1) % TIMER_BIG_MODES.length];
+      saveTimerBigMode(timerBigMode);
+      renderTimerDisplay();
     }
 
     function renderSessionStartedLabel() {
@@ -3213,6 +3302,13 @@
     // ============ Event wiring ============
     startStopButton.addEventListener('click', handleStartStopPress);
     lapResetButton.addEventListener('click', handleLapOrResetPress);
+    timerDisplayValue.addEventListener('click', handleTimerBigModeCycleTap);
+    timerDisplayValue.addEventListener('keydown', (keyEvent) => {
+      if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+        keyEvent.preventDefault();
+        handleTimerBigModeCycleTap();
+      }
+    });
     renameActivityButton.addEventListener('click', openEditModalForActivityRename);
     deleteActivityButton.addEventListener('click', openEditModalForActivityDeleteConfirm);
     moveActivityLeftButton.addEventListener('click', handleMoveActivityLeftPress);
@@ -3307,12 +3403,34 @@
       }
     }
 
+    // F2 perf memo: TODAY big-number mode calls getMinutesForDate every animation frame
+    // while running, which rebuilt this map (Date math per lap) at ~60fps. Cache the map
+    // per activity; the fingerprint is O(laps) of plain additions, so any lap add, delete,
+    // merge, duration edit (shifts split sums) or date edit (shifts recorded sums)
+    // invalidates it. Uncommitted live time is NOT in this map, so caching never stales the tick.
+    const lapDailyTotalsCache = new Map();
+
+    function buildLapDailyTotalsFingerprint(activity) {
+      const laps = activity.laps;
+      let splitSum = 0;
+      let recordedSum = 0;
+      for (let lapIndex = 0; lapIndex < laps.length; lapIndex++) {
+        splitSum += laps[lapIndex].splitTimeMs || 0;
+        recordedSum += laps[lapIndex].recordedAtWallClockMs || 0;
+      }
+      const lastLapId = laps.length > 0 ? laps[laps.length - 1].lapId : 0;
+      return `${laps.length}|${lastLapId}|${splitSum}|${recordedSum}`;
+    }
+
     function getActivityLapDailyTotalsMinutes(activity) {
       // Returns { 'YYYY-MM-DD': minutes }. Each lap's duration is attributed to the actual
       // local day(s) its wall-clock interval spanned (splitting at midnight), using the
       // lap's recordedAtWallClockMs as the interval END. Laps with null timestamps skipped.
       const dailyMap = {};
       if (!activity) return dailyMap;
+      const cacheFingerprint = buildLapDailyTotalsFingerprint(activity);
+      const cachedEntry = lapDailyTotalsCache.get(activity.activityId);
+      if (cachedEntry && cachedEntry.fingerprint === cacheFingerprint) return cachedEntry.dailyMap;
       const laps = activity.laps;
       for (let lapIndex = 0; lapIndex < laps.length; lapIndex++) {
         const lapEntry = laps[lapIndex];
@@ -3321,6 +3439,7 @@
         const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
         addIntervalMinutesByDay(dailyMap, lapEntry.recordedAtWallClockMs, lapDurationMs);
       }
+      lapDailyTotalsCache.set(activity.activityId, { fingerprint: cacheFingerprint, dailyMap: dailyMap });
       return dailyMap;
     }
 
@@ -4441,6 +4560,37 @@
             }
           }
         }
+      } else {
+        // F1: idle refresh — once per second, re-render the big number if the local date
+        // has changed since the last render (TODAY mode and count activities go stale at
+        // midnight otherwise, e.g. app left open/backgrounded overnight while stopped).
+        const nowIdleSecond = Math.floor(Date.now() / 1000);
+        if (nowIdleSecond !== lastIdleRenderCheckSecond) {
+          lastIdleRenderCheckSecond = nowIdleSecond;
+          const currentIdleDateKey = formatDateKey(new Date());
+          if (lastTimerDisplayRenderDateKey !== null && currentIdleDateKey !== lastTimerDisplayRenderDateKey) {
+            renderTimerDisplay();
+          }
+          // N3: the Stats view goes stale at the same midnight boundary while idle
+          // ("Today" card, week windows). Refresh once per date flip when the view is
+          // open, skipping (and retrying next second) while the chart tooltip is open —
+          // same guard as the live per-minute stats refresh. When the view is closed the
+          // key just advances; switchToView('stats') renders fresh on open anyway.
+          if (lastIdleStatsRenderDateKey === null) {
+            lastIdleStatsRenderDateKey = currentIdleDateKey;
+          } else if (currentIdleDateKey !== lastIdleStatsRenderDateKey) {
+            if (typeof statsState !== 'undefined' && statsState.currentView === 'stats') {
+              const chartTooltip = document.getElementById('statsChartTooltip');
+              const tooltipOpen = chartTooltip && chartTooltip.classList.contains('is-visible');
+              if (!tooltipOpen) {
+                lastIdleStatsRenderDateKey = currentIdleDateKey;
+                renderStatsAll();
+              }
+            } else {
+              lastIdleStatsRenderDateKey = currentIdleDateKey;
+            }
+          }
+        }
       }
       requestAnimationFrame(animationFrameTick);
     }
@@ -4782,6 +4932,8 @@
     // Replace local state wholesale with a remote state object (used when switching to a
     // different account that has cloud data — no merge, so no cross-account contamination).
     function replaceLocalStateWith(remoteStateObject) {
+      // N2: the incoming account's activity ids may collide with cached ones.
+      lapDailyTotalsCache.clear();
       const activities = Array.isArray(remoteStateObject.activities)
         ? remoteStateObject.activities.map(sanitizeActivity) : [];
       if (activities.length === 0) { resetToFreshState(); return; }
@@ -4797,6 +4949,8 @@
     // Reset to a clean first-run state (used when a brand-new account signs in on a device
     // that previously held a different account's data).
     function resetToFreshState() {
+      // N2: activity ids restart from 1 here — drop cached daily maps keyed by old ids.
+      lapDailyTotalsCache.clear();
       appState.activities = [createActivityShell(1, 'Activity 01')];
       appState.currentActivityId = 1;
       appState.nextActivityId = 2;
