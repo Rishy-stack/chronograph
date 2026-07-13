@@ -378,7 +378,12 @@
       font-variant-numeric: tabular-nums;
     }
     .timed-pill.is-armed { color: var(--color-text-primary); }
-    .timed-pill.is-counting { color: var(--color-warning); border-color: var(--color-warning); }
+    .timed-pill.is-counting {
+      color: var(--color-on-warning);
+      background: var(--color-warning);
+      border-color: var(--color-warning);
+      font-weight: 600;
+    }
     .timed-pill svg { display: block; }
     .timed-chips {
       display: flex;
@@ -823,6 +828,7 @@
       --color-success-bg: rgba(48, 209, 88, 0.18);
       --color-warning: #ffd60a;
       --color-warning-bg: rgba(255, 214, 10, 0.16);
+      --color-on-warning: #2b2208; /* dark text for filled warning surfaces; legible in both themes */
       --color-edit-bg: rgba(255, 159, 10, 0.18);
       --color-missed-dot: #48484a;
     }
