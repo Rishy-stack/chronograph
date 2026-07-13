@@ -93,6 +93,7 @@
       body { max-width: 700px; }
       .timer-display-value { font-size: 104px; }
       .controls-section { max-width: 480px; margin-left: auto; margin-right: auto; width: 100%; }
+      .timed-session-row { max-width: 480px; margin-left: auto; margin-right: auto; width: 100%; }
       .stats-view { max-width: 600px; margin-left: auto; margin-right: auto; width: 100%; }
     }
     @media (min-width: 1280px) {
@@ -356,6 +357,11 @@
       align-items: center;
       justify-content: center;
       margin-bottom: 12px;
+      padding-left: var(--content-gutter);
+      padding-right: var(--content-gutter);
+      max-width: 100%;
+      overflow: hidden;
+      flex-shrink: 0;
     }
     .timed-pill {
       font-family: var(--font-ui);
@@ -379,6 +385,7 @@
       gap: 6px;
       overflow-x: auto;
       max-width: 100%;
+      min-width: 0;
       padding: 0 4px;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
@@ -1393,11 +1400,12 @@
     <div class="goal-nudge" id="goalNudge"></div>
   </section>
 
+  <div class="timed-session-row" id="timedSessionRow" style="display:none">
+    <button class="timed-pill" id="timedSessionPill" aria-label="Timed session duration"></button>
+    <div class="timed-chips" id="timedSessionChips" style="display:none"></div>
+  </div>
+
   <section class="controls-section">
-    <div class="timed-session-row" id="timedSessionRow" style="display:none">
-      <button class="timed-pill" id="timedSessionPill" aria-label="Timed session duration"></button>
-      <div class="timed-chips" id="timedSessionChips" style="display:none"></div>
-    </div>
     <button class="control-button secondary-action" id="lapResetButton" disabled>New session</button>
     <button class="control-button primary-action" id="startStopButton">Start</button>
   </section>
