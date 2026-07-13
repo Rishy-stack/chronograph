@@ -206,6 +206,7 @@
       body { max-width: 640px; }
       .timer-display-value { font-size: clamp(44px, 11vh, 64px); }
       .timer-big-mode-label { font-size: 10px; margin-bottom: 6px; min-height: 12px; }
+      .timed-session-row { height: 30px; margin-bottom: 6px; }
       .timer-display-section { padding-top: 8px; padding-bottom: 6px; }
       .activity-tabs-section { padding-top: 6px; padding-bottom: 4px; }
       .control-button { width: 60px; height: 60px; font-size: 14px; }
@@ -346,6 +347,56 @@
     .timer-display-value.is-tappable {
       cursor: pointer;
     }
+
+    /* Timed sessions (v2.12.0): a quiet pill centered above the controls; tap to expand
+       into duration chips. Fixed row height so collapsed/expanded never shift layout. */
+    .timed-session-row {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .timed-pill {
+      font-family: var(--font-ui);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    .timed-pill.is-armed { color: var(--color-text-primary); }
+    .timed-pill.is-counting { color: var(--color-warning); border-color: var(--color-warning); }
+    .timed-pill svg { display: block; }
+    .timed-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      max-width: 100%;
+      padding: 0 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .timed-chips::-webkit-scrollbar { display: none; }
+    .timed-chip {
+      font-family: var(--font-ui);
+      font-size: 12.5px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .timed-chip.is-selected { color: var(--color-text-primary); border-color: var(--color-text-muted); }
 
     .timer-display-value .digits-centiseconds {
       font-weight: 200;
@@ -1343,6 +1394,10 @@
   </section>
 
   <section class="controls-section">
+    <div class="timed-session-row" id="timedSessionRow" style="display:none">
+      <button class="timed-pill" id="timedSessionPill" aria-label="Timed session duration"></button>
+      <div class="timed-chips" id="timedSessionChips" style="display:none"></div>
+    </div>
     <button class="control-button secondary-action" id="lapResetButton" disabled>New session</button>
     <button class="control-button primary-action" id="startStopButton">Start</button>
   </section>
@@ -1633,7 +1688,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.11.0';
+    const APP_VERSION = '2.12.0';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -1660,6 +1715,80 @@
     }
 
     let timerBigMode = loadTimerBigMode();
+
+    // ============ Timed sessions (v2.12.0) ============
+    // A per-device countdown that auto-presses Stop after a chosen duration (friend's
+    // "iOS-timer then chant" workflow, in-app). Selection is sticky per device
+    // (localStorage); the active countdown is also stored locally so a page reload
+    // resumes it — and if the target passed while backgrounded/locked, the session is
+    // stopped retroactively crediting exactly the target. Nothing here is synced.
+    const TIMED_SESSION_MINUTES_KEY = 'chronograph:timedSessionMinutes:v1';
+    const TIMED_SESSION_ACTIVE_KEY = 'chronograph:timedSessionActive:v1';
+    const TIMED_SESSION_CHOICES = [5, 10, 15, 20, 30, 45, 60, 90];
+
+    function loadTimedSessionMinutes() {
+      try {
+        const storedMinutes = parseInt(localStorage.getItem(TIMED_SESSION_MINUTES_KEY), 10);
+        // Any whole minute from the chips OR the custom wheel (max 5h59m) is valid.
+        return Number.isInteger(storedMinutes) && storedMinutes >= 1 && storedMinutes <= 359 ? storedMinutes : null;
+      } catch (storageError) { return null; }
+    }
+    function saveTimedSessionMinutes(minutesToSave) {
+      try {
+        if (minutesToSave == null) localStorage.removeItem(TIMED_SESSION_MINUTES_KEY);
+        else localStorage.setItem(TIMED_SESSION_MINUTES_KEY, String(minutesToSave));
+      } catch (storageError) { /* storage unavailable */ }
+    }
+
+    let timedSessionMinutes = loadTimedSessionMinutes();  // sticky selection, null = off
+    let timedSessionActivityId = null;                    // which activity the countdown belongs to
+    let timedSessionTargetEpochMs = null;                 // wall-clock auto-stop moment
+    let timedSessionPickerOpen = false;
+    let timedSessionWakeLock = null;
+
+    function persistActiveTimedSession(activityId, targetEpochMs) {
+      try { localStorage.setItem(TIMED_SESSION_ACTIVE_KEY, JSON.stringify({ activityId, targetEpochMs })); } catch (storageError) { /* storage unavailable */ }
+    }
+    function clearTimedSession() {
+      timedSessionActivityId = null;
+      timedSessionTargetEpochMs = null;
+      try { localStorage.removeItem(TIMED_SESSION_ACTIVE_KEY); } catch (storageError) { /* storage unavailable */ }
+      releaseTimedSessionWakeLock();
+    }
+    async function requestTimedSessionWakeLock() {
+      // Best-effort: keeps the screen on during a timed session where supported.
+      try {
+        if (navigator.wakeLock && document.visibilityState === 'visible') {
+          timedSessionWakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (wakeLockError) { timedSessionWakeLock = null; }
+    }
+    function releaseTimedSessionWakeLock() {
+      try { if (timedSessionWakeLock) timedSessionWakeLock.release(); } catch (wakeLockError) { /* already released */ }
+      timedSessionWakeLock = null;
+    }
+    function playTimedSessionChime() {
+      // Soft two-tone bell when the countdown completes with the app open. Best-effort:
+      // iOS may keep the context suspended without a user gesture — then it's silent.
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') audioContext.resume();
+        [[880, 0], [660, 0.18]].forEach(([frequency, startOffset]) => {
+          const oscillator = audioContext.createOscillator();
+          oscillator.type = 'sine';
+          oscillator.frequency.value = frequency;
+          const toneGain = audioContext.createGain();
+          toneGain.gain.setValueAtTime(0.0001, audioContext.currentTime + startOffset);
+          toneGain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + startOffset + 0.02);
+          toneGain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + startOffset + 0.6);
+          oscillator.connect(toneGain);
+          toneGain.connect(audioContext.destination);
+          oscillator.start(audioContext.currentTime + startOffset);
+          oscillator.stop(audioContext.currentTime + startOffset + 0.7);
+        });
+        setTimeout(() => { try { audioContext.close(); } catch (closeError) { /* noop */ } }, 1400);
+      } catch (audioError) { /* audio unavailable */ }
+    }
 
     // ============ State ============
     const appState = {
@@ -1968,6 +2097,9 @@
     const moveActivityRightButton = document.getElementById('moveActivityRightButton');
     const timerDisplayValue = document.getElementById('timerDisplayValue');
     const timerBigModeLabel = document.getElementById('timerBigModeLabel');
+    const timedSessionRow = document.getElementById('timedSessionRow');
+    const timedSessionPill = document.getElementById('timedSessionPill');
+    const timedSessionChips = document.getElementById('timedSessionChips');
     const sessionStartedLabel = document.getElementById('sessionStartedLabel');
     const startStopButton = document.getElementById('startStopButton');
     const lapResetButton = document.getElementById('lapResetButton');
@@ -2226,6 +2358,84 @@
       renderTimerDisplay();
     }
 
+    // ============ Timed sessions — UI (v2.12.0) ============
+    const TIMED_PILL_ICON_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>';
+
+    function formatCountdownRemaining(remainingMs) {
+      const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+      const minutesPart = Math.floor(totalSeconds / 60);
+      const secondsPart = totalSeconds % 60;
+      return `${minutesPart}:${String(secondsPart).padStart(2, '0')}`;
+    }
+
+    function formatTimedMinutesLabel(totalMinutes) {
+      if (totalMinutes < 60) return `${totalMinutes} min`;
+      const hoursPart = Math.floor(totalMinutes / 60);
+      const minutesPart = totalMinutes % 60;
+      return minutesPart > 0 ? `${hoursPart}h ${minutesPart}m` : `${hoursPart}h`;
+    }
+
+    function isCustomTimedMinutes(minutesValue) {
+      return minutesValue != null && !TIMED_SESSION_CHOICES.includes(minutesValue);
+    }
+
+    function buildTimedSessionChips() {
+      const chipValues = ['off', ...TIMED_SESSION_CHOICES, 'custom'];
+      timedSessionChips.innerHTML = chipValues.map(chipValue => {
+        const chipLabel = chipValue === 'off' ? 'Off' : (chipValue === 'custom' ? 'Custom' : `${chipValue}m`);
+        return `<button class="timed-chip" data-minutes="${chipValue}">${chipLabel}</button>`;
+      }).join('');
+      Array.from(timedSessionChips.children).forEach(chipButton => chipButton.addEventListener('click', () => {
+        if (chipButton.dataset.minutes === 'custom') { openTimedCustomModal(); return; }
+        timedSessionMinutes = chipButton.dataset.minutes === 'off' ? null : Number(chipButton.dataset.minutes);
+        saveTimedSessionMinutes(timedSessionMinutes);
+        timedSessionPickerOpen = false;
+        renderTimedSessionRow();
+      }));
+    }
+
+    function renderTimedSessionRow() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || activityIsCount(currentActivity)) {
+        timedSessionRow.style.display = 'none';
+        timedSessionPickerOpen = false;
+        return;
+      }
+      timedSessionRow.style.display = '';
+      const countingHere = timedSessionTargetEpochMs !== null
+        && timedSessionActivityId === currentActivity.activityId
+        && currentActivity.isRunning;
+      if (timedSessionPickerOpen && !countingHere) {
+        timedSessionPill.style.display = 'none';
+        timedSessionChips.style.display = '';
+        if (!timedSessionChips.childElementCount) buildTimedSessionChips();
+        Array.from(timedSessionChips.children).forEach(chipButton => {
+          if (chipButton.dataset.minutes === 'custom') {
+            const customActive = isCustomTimedMinutes(timedSessionMinutes);
+            chipButton.classList.toggle('is-selected', customActive);
+            chipButton.textContent = customActive ? `Custom · ${formatTimedMinutesLabel(timedSessionMinutes)}` : 'Custom';
+            return;
+          }
+          const chipMinutes = chipButton.dataset.minutes === 'off' ? null : Number(chipButton.dataset.minutes);
+          chipButton.classList.toggle('is-selected', chipMinutes === timedSessionMinutes);
+        });
+        return;
+      }
+      timedSessionPickerOpen = false;
+      timedSessionChips.style.display = 'none';
+      timedSessionPill.style.display = '';
+      if (countingHere) {
+        timedSessionPill.className = 'timed-pill is-counting';
+        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatCountdownRemaining(timedSessionTargetEpochMs - Date.now())}`;
+      } else if (timedSessionMinutes != null) {
+        timedSessionPill.className = 'timed-pill is-armed';
+        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatTimedMinutesLabel(timedSessionMinutes)}`;
+      } else {
+        timedSessionPill.className = 'timed-pill';
+        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}Timed`;
+      }
+    }
+
     function renderSessionStartedLabel() {
       const currentActivity = getCurrentActivity();
       if (currentActivity && activityIsCount(currentActivity)) {
@@ -2378,6 +2588,7 @@
       renderTimerDisplay();
       renderSessionStartedLabel();
       renderControlButtons();
+      renderTimedSessionRow();
       renderLapsList();
       renderGoalNudge();
       renderDaimokuCounter();
@@ -2804,6 +3015,8 @@
         currentActivity.accumulatedBeforeSegmentMs = totalAtStopMs;
         currentActivity.segmentStartTimestamp = null;
         currentActivity.isRunning = false;
+        // v2.12.0: a manual Stop cancels any pending countdown for this activity.
+        if (timedSessionActivityId === currentActivity.activityId) clearTimedSession();
         // Item 4: auto-commit the time since the last lap as a session, so stats
         // capture the work without needing a manual Lap press. Ignore tiny segments.
         const lastCommittedSplitMs = currentActivity.laps.length > 0
@@ -2825,9 +3038,83 @@
           currentActivity.sessionStartedAtWallClockMs = Date.now();
         }
         currentActivity.isRunning = true;
+        // v2.12.0: arm the timed-session countdown if a duration is selected.
+        if (timedSessionMinutes != null) {
+          timedSessionActivityId = currentActivity.activityId;
+          timedSessionTargetEpochMs = currentActivity.segmentStartTimestamp + timedSessionMinutes * 60000;
+          persistActiveTimedSession(timedSessionActivityId, timedSessionTargetEpochMs);
+          requestTimedSessionWakeLock();
+        }
         stampActivityModified(currentActivity);
       }
       commitChange();
+    }
+
+    // ============ Timed sessions — mechanics (v2.12.0) ============
+    function stopTimedSessionAtTarget(activityObject, targetEpochMs) {
+      // Stops as if Stop had been pressed exactly at targetEpochMs — which may be in the
+      // past if the countdown finished while the app was backgrounded/locked. Credits
+      // exactly the armed duration (never inflates the log); the lap's recordedAt is the
+      // true finish moment, so midnight-splitting stays correct. Mirrors the manual Stop
+      // path in handleStartStopPress.
+      if (!activityObject || !activityObject.isRunning || activityObject.segmentStartTimestamp === null) {
+        clearTimedSession();
+        return;
+      }
+      const boundedTargetMs = Math.max(targetEpochMs, activityObject.segmentStartTimestamp);
+      const totalAtStopMs = activityObject.accumulatedBeforeSegmentMs + (boundedTargetMs - activityObject.segmentStartTimestamp);
+      activityObject.accumulatedBeforeSegmentMs = totalAtStopMs;
+      activityObject.segmentStartTimestamp = null;
+      activityObject.isRunning = false;
+      const lastCommittedSplitMs = activityObject.laps.length > 0
+        ? activityObject.laps[activityObject.laps.length - 1].splitTimeMs
+        : 0;
+      const uncommittedDurationMs = totalAtStopMs - lastCommittedSplitMs;
+      if (uncommittedDurationMs >= AUTO_COMMIT_THRESHOLD_MS) {
+        activityObject.laps.push({
+          lapId: activityObject.nextLapId++,
+          splitTimeMs: totalAtStopMs,
+          recordedAtWallClockMs: boundedTargetMs,
+          lastModifiedMs: Date.now(),
+        });
+      }
+      stampActivityModified(activityObject);
+      clearTimedSession();
+      if (document.visibilityState === 'visible') playTimedSessionChime();
+      commitChange();
+    }
+
+    function checkTimedSessionCountdown() {
+      // Called once per second from the tick (both running and idle branches — the
+      // countdown's activity may not be the currently viewed one) and on visibility
+      // regain, so a target that passed under lock is settled immediately.
+      if (timedSessionTargetEpochMs === null) return;
+      if (Date.now() >= timedSessionTargetEpochMs) {
+        const timedActivity = appState.activities.find(a => a.activityId === timedSessionActivityId);
+        stopTimedSessionAtTarget(timedActivity, timedSessionTargetEpochMs);
+      } else {
+        renderTimedSessionRow();
+      }
+    }
+
+    function resumeTimedSessionIfAny() {
+      // Page-load recovery: the active countdown lives in device-local storage so a
+      // reload (or reopen after lock) can resume it — or settle it retroactively.
+      let storedBlob = null;
+      try { storedBlob = JSON.parse(localStorage.getItem(TIMED_SESSION_ACTIVE_KEY) || 'null'); } catch (parseError) { storedBlob = null; }
+      if (!storedBlob || typeof storedBlob.targetEpochMs !== 'number') { clearTimedSession(); return; }
+      const activityObject = appState.activities.find(a => a.activityId === storedBlob.activityId);
+      if (!activityObject || !activityObject.isRunning || activityObject.segmentStartTimestamp === null) {
+        clearTimedSession();
+        return;
+      }
+      timedSessionActivityId = storedBlob.activityId;
+      timedSessionTargetEpochMs = storedBlob.targetEpochMs;
+      if (Date.now() >= timedSessionTargetEpochMs) {
+        stopTimedSessionAtTarget(activityObject, timedSessionTargetEpochMs);
+        return;
+      }
+      requestTimedSessionWakeLock();
     }
 
     function handleLapOrResetPress() {
@@ -3167,6 +3454,39 @@
       showEditModal();
     }
 
+    // v2.12.0: custom timed-session duration via the shared wheel modal (h + m columns).
+    function formatTimedCustomCaption(values) {
+      const totalMinutes = (values.hours || 0) * 60 + (values.minutes || 0);
+      if (totalMinutes < 1) return 'Pick a duration';
+      return `Auto-stop after ${formatTimedMinutesLabel(totalMinutes)}`;
+    }
+
+    function mountTimedCustomWheel(initialMinutes) {
+      editModalWheelCaption.style.display = '';
+      editModalWheel.style.display = '';
+      const initialValues = { hours: Math.floor(initialMinutes / 60), minutes: initialMinutes % 60 };
+      editModalWheelController = createWheelPicker(
+        editModalWheel,
+        [
+          { key: 'hours', length: 6, pad2: false, unit: 'h' },
+          { key: 'minutes', length: 60, pad2: true, unit: 'm' },
+        ],
+        (values) => { editModalWheelCaption.textContent = formatTimedCustomCaption(values); }
+      );
+      editModalWheelController.setValues(initialValues);
+      editModalWheelCaption.textContent = formatTimedCustomCaption(initialValues);
+    }
+
+    function openTimedCustomModal() {
+      editModalContext.modeKind = 'timed-custom';
+      editModalContext.targetLapId = null;
+      editModalTitle.textContent = 'Timed session';
+      resetEditModalRegions();
+      mountTimedCustomWheel(timedSessionMinutes != null ? timedSessionMinutes : 15);
+      editModalSaveButton.textContent = 'Set';
+      showEditModal();
+    }
+
     function showEditModal() {
       editModalBackdrop.classList.add('is-visible');
       // B1: re-apply wheel scroll now that the modal has layout (was hidden when set).
@@ -3187,6 +3507,18 @@
     }
 
     function handleEditModalSave() {
+      if (editModalContext.modeKind === 'timed-custom') {
+        const wheelValues = editModalWheelController ? editModalWheelController.getValues() : null;
+        const totalMinutes = wheelValues ? (wheelValues.hours || 0) * 60 + (wheelValues.minutes || 0) : 0;
+        hideEditModal();
+        if (totalMinutes >= 1) {
+          timedSessionMinutes = totalMinutes;
+          saveTimedSessionMinutes(timedSessionMinutes);
+          timedSessionPickerOpen = false;
+          renderTimedSessionRow();
+        }
+        return;
+      }
       if (editModalContext.modeKind === 'confirm') {
         const callback = pendingConfirmCallback;
         pendingConfirmCallback = null;
@@ -4546,6 +4878,7 @@
         if (nowSecond !== lastPerSecondRenderSecond) {
           lastPerSecondRenderSecond = nowSecond;
           renderGoalNudge();
+          checkTimedSessionCountdown();
           // Stats display minutes, so refresh on minute boundaries only — avoids
           // rebuilding the chart/heatmap every second (which killed the tap-tooltip
           // and reset heatmap scroll). Skip entirely while the user has a tooltip open.
@@ -4567,6 +4900,7 @@
         const nowIdleSecond = Math.floor(Date.now() / 1000);
         if (nowIdleSecond !== lastIdleRenderCheckSecond) {
           lastIdleRenderCheckSecond = nowIdleSecond;
+          checkTimedSessionCountdown();
           const currentIdleDateKey = formatDateKey(new Date());
           if (lastTimerDisplayRenderDateKey !== null && currentIdleDateKey !== lastTimerDisplayRenderDateKey) {
             renderTimerDisplay();
@@ -4594,6 +4928,15 @@
       }
       requestAnimationFrame(animationFrameTick);
     }
+    timedSessionPill.addEventListener('click', () => {
+      const currentActivity = getCurrentActivity();
+      const countingHere = timedSessionTargetEpochMs !== null && currentActivity
+        && timedSessionActivityId === currentActivity.activityId && currentActivity.isRunning;
+      if (countingHere) return; // no accidental cancel — Stop ends the session
+      timedSessionPickerOpen = !timedSessionPickerOpen;
+      renderTimedSessionRow();
+    });
+    resumeTimedSessionIfAny();
     requestAnimationFrame(animationFrameTick);
 
     // ============ Supabase cloud sync ============
@@ -4934,6 +5277,7 @@
     function replaceLocalStateWith(remoteStateObject) {
       // N2: the incoming account's activity ids may collide with cached ones.
       lapDailyTotalsCache.clear();
+      clearTimedSession(); // v2.12.0: countdown belongs to the outgoing account's activity
       const activities = Array.isArray(remoteStateObject.activities)
         ? remoteStateObject.activities.map(sanitizeActivity) : [];
       if (activities.length === 0) { resetToFreshState(); return; }
@@ -4951,6 +5295,7 @@
     function resetToFreshState() {
       // N2: activity ids restart from 1 here — drop cached daily maps keyed by old ids.
       lapDailyTotalsCache.clear();
+      clearTimedSession(); // v2.12.0: a countdown must not survive into a fresh state
       appState.activities = [createActivityShell(1, 'Activity 01')];
       appState.currentActivityId = 1;
       appState.nextActivityId = 2;
@@ -5235,6 +5580,11 @@
       if (document.visibilityState === 'hidden') {
         persistStateToStorage();
         if (currentUser) cloudSync.flushNow();
+      } else if (document.visibilityState === 'visible' && timedSessionTargetEpochMs !== null) {
+        // v2.12.0: settle a countdown that finished under lock immediately, or
+        // re-acquire the wake lock (iOS releases it on hide).
+        checkTimedSessionCountdown();
+        if (timedSessionTargetEpochMs !== null) requestTimedSessionWakeLock();
       }
     });
     window.addEventListener('pagehide', () => {
