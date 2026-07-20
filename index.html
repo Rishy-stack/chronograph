@@ -695,7 +695,12 @@
       position: fixed; inset: 0;
       background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      z-index: 100;
+      /* v2.19.0: must sit ABOVE .sheet-backdrop (110). The edit/confirm modal is opened
+         FROM sheets (new/edit prayer, delete prayer, start-new-campaign, count-from-the-
+         beginning), and at z-index 100 it rendered behind the sheet — the dialog looked
+         like nothing happened, then appeared only after the sheet was closed. The modal is
+         always the innermost, focused interaction, so it belongs on top of any sheet. */
+      z-index: 120;
       display: none;
       align-items: flex-end; justify-content: center;
       padding-bottom: var(--safe-bottom);
@@ -1807,6 +1812,7 @@
                min="0" step="1000" placeholder="Custom total (e.g. 1000000)" />
         <p class="goal-explainer" id="chantCampaignExplainer"></p>
         <button class="chant-campaign-reset" id="chantCampaignResetButton" style="display:none">Start a new campaign</button>
+        <button class="chant-campaign-reset" id="chantCampaignCountAllButton" style="display:none">Count from the beginning</button>
       </div>
       <div class="sheet-actions">
         <button class="sheet-button cancel" id="statsGoalCancelButton">Cancel</button>
@@ -1863,7 +1869,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.18.0';
+    const APP_VERSION = '2.19.0';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -5196,13 +5202,19 @@
       const resetButton = document.getElementById('chantCampaignResetButton');
       if (!explainer || !resetButton) return;
       const progress = getChantCampaignProgress(activity);
+      const countAllButton = document.getElementById('chantCampaignCountAllButton');
+      const campaignStart = (activity && activity.campaignStartTotal) || 0;
       if (chantCampaignPendingTarget > 0) {
         const pct = Math.min(100, Math.round((progress / chantCampaignPendingTarget) * 100));
-        explainer.textContent = `Progress bar fills toward ${formatGroupedNumber(chantCampaignPendingTarget)} daimoku. Currently ${formatGroupedNumber(progress)} (${pct}%).`;
+        explainer.textContent = `Progress bar fills toward ${formatGroupedNumber(chantCampaignPendingTarget)} daimoku. Currently ${formatGroupedNumber(progress)} (${pct}%).`
+          + (campaignStart > 0 ? ` Counting from a campaign start at ${formatGroupedNumber(campaignStart)}; ${formatGroupedNumber(campaignStart)} earlier daimoku are excluded.` : '');
         resetButton.style.display = progress > 0 ? '' : 'none';
+        // Only offer the undo when a marker is actually excluding past daimoku.
+        if (countAllButton) countAllButton.style.display = campaignStart > 0 ? '' : 'none';
       } else {
         explainer.textContent = 'No campaign goal — the progress bar stays hidden.';
         resetButton.style.display = 'none';
+        if (countAllButton) countAllButton.style.display = 'none';
       }
     }
     function setupChantCampaignSection(activity) {
@@ -5231,6 +5243,26 @@
       chantCampaignPendingTarget = parsed;
       refreshChantTargetPresetSelection();
       refreshChantCampaignExplainer(getCurrentActivity());
+    });
+    // v2.18.0 — the inverse of "Start a new campaign": clear the marker so the bar counts
+    // the FULL lifetime again. Needed when a campaign start was dropped unintentionally —
+    // e.g. re-entering a target after a merge zeroed chantTargetTotal makes the app treat a
+    // long-running campaign as brand new, parking progress at 0 despite a large lifetime.
+    document.getElementById('chantCampaignCountAllButton').addEventListener('click', () => {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity || !activityIsChant(currentActivity)) return;
+      openConfirmModal(
+        'Count From The Beginning',
+        'Count all your lifetime daimoku toward this campaign? The progress bar will include every session ever recorded.',
+        'Count all',
+        () => {
+          currentActivity.campaignStartTotal = 0;
+          stampActivityModified(currentActivity);
+          persistStateToStorage();
+          refreshChantCampaignExplainer(currentActivity);
+          renderAll();
+        }
+      );
     });
     // Start a new campaign: drop a marker at the current lifetime total so the bar
     // re-zeros, WITHOUT deleting any sessions/time. Confirmed before applying.
