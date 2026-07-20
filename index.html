@@ -1869,7 +1869,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.19.0';
+    const APP_VERSION = '2.20.0';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -1919,17 +1919,42 @@
       stampActivityModified(activityObject);
       commitChange();
     }
-    let timedSessionActivityId = null;                    // which activity the countdown belongs to
-    let timedSessionTargetEpochMs = null;                 // wall-clock auto-stop moment
+    // v2.20.0: countdowns are PER ACTIVITY. Two activities can run at once (each has its
+    // own isRunning), and v2.14.0 already made the chosen duration per-activity — but the
+    // live countdown was a single pair of scalars, so arming a second activity silently
+    // discarded the first one's target and only the most recent ever auto-stopped.
+    // activityId -> wall-clock auto-stop epoch ms. Device-local; never synced.
+    const activeTimedSessions = new Map();
     let timedSessionPickerOpen = false;
     let timedSessionWakeLock = null;
 
-    function persistActiveTimedSession(activityId, targetEpochMs) {
-      try { localStorage.setItem(TIMED_SESSION_ACTIVE_KEY, JSON.stringify({ activityId, targetEpochMs })); } catch (storageError) { /* storage unavailable */ }
+    function getTimedSessionTarget(activityId) {
+      const targetEpochMs = activeTimedSessions.get(activityId);
+      return typeof targetEpochMs === 'number' ? targetEpochMs : null;
     }
-    function clearTimedSession() {
-      timedSessionActivityId = null;
-      timedSessionTargetEpochMs = null;
+    function persistActiveTimedSessions() {
+      try {
+        if (activeTimedSessions.size === 0) { localStorage.removeItem(TIMED_SESSION_ACTIVE_KEY); return; }
+        const storedList = Array.from(activeTimedSessions, ([activityId, targetEpochMs]) => ({ activityId, targetEpochMs }));
+        localStorage.setItem(TIMED_SESSION_ACTIVE_KEY, JSON.stringify(storedList));
+      } catch (storageError) { /* storage unavailable */ }
+    }
+    function armTimedSession(activityId, targetEpochMs) {
+      activeTimedSessions.set(activityId, targetEpochMs);
+      persistActiveTimedSessions();
+    }
+    // Clear ONE activity's countdown. The wake lock is shared, so it is only released
+    // once no countdown remains pending — otherwise stopping one activity would drop the
+    // screen lock while another is still counting down.
+    function clearTimedSessionFor(activityId) {
+      if (!activeTimedSessions.has(activityId)) return;
+      activeTimedSessions.delete(activityId);
+      persistActiveTimedSessions();
+      if (activeTimedSessions.size === 0) releaseTimedSessionWakeLock();
+    }
+    // Clear every countdown (sign-out, state replacement, fresh state).
+    function clearAllTimedSessions() {
+      activeTimedSessions.clear();
       try { localStorage.removeItem(TIMED_SESSION_ACTIVE_KEY); } catch (storageError) { /* storage unavailable */ }
       releaseTimedSessionWakeLock();
     }
@@ -2693,9 +2718,8 @@
       }
       timedSessionRow.style.display = '';
       const activityTimedMinutes = getActivityTimedMinutes(currentActivity);
-      const countingHere = timedSessionTargetEpochMs !== null
-        && timedSessionActivityId === currentActivity.activityId
-        && currentActivity.isRunning;
+      const currentTargetEpochMs = getTimedSessionTarget(currentActivity.activityId);
+      const countingHere = currentTargetEpochMs !== null && currentActivity.isRunning;
       if (timedSessionPickerOpen && !countingHere) {
         timedSessionPill.style.display = 'none';
         timedSessionChips.style.display = '';
@@ -2717,7 +2741,7 @@
       timedSessionPill.style.display = '';
       if (countingHere) {
         timedSessionPill.className = 'timed-pill is-counting';
-        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatCountdownRemaining(timedSessionTargetEpochMs - Date.now())}`;
+        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatCountdownRemaining(currentTargetEpochMs - Date.now())}`;
       } else if (activityTimedMinutes != null) {
         timedSessionPill.className = 'timed-pill is-armed';
         timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatTimedMinutesLabel(activityTimedMinutes)}`;
@@ -3469,7 +3493,7 @@
         currentActivity.segmentStartTimestamp = null;
         currentActivity.isRunning = false;
         // v2.12.0: a manual Stop cancels any pending countdown for this activity.
-        if (timedSessionActivityId === currentActivity.activityId) clearTimedSession();
+        clearTimedSessionFor(currentActivity.activityId);
         // Item 4: auto-commit the time since the last lap as a session, so stats
         // capture the work without needing a manual Lap press. Ignore tiny segments.
         const lastCommittedSplitMs = currentActivity.laps.length > 0
@@ -3494,9 +3518,7 @@
         // v2.12.0/v2.14.0: arm the countdown from THIS activity's selected duration.
         const armMinutes = getActivityTimedMinutes(currentActivity);
         if (armMinutes != null) {
-          timedSessionActivityId = currentActivity.activityId;
-          timedSessionTargetEpochMs = currentActivity.segmentStartTimestamp + armMinutes * 60000;
-          persistActiveTimedSession(timedSessionActivityId, timedSessionTargetEpochMs);
+          armTimedSession(currentActivity.activityId, currentActivity.segmentStartTimestamp + armMinutes * 60000);
           requestTimedSessionWakeLock();
         }
         stampActivityModified(currentActivity);
@@ -3512,7 +3534,7 @@
       // true finish moment, so midnight-splitting stays correct. Mirrors the manual Stop
       // path in handleStartStopPress.
       if (!activityObject || !activityObject.isRunning || activityObject.segmentStartTimestamp === null) {
-        clearTimedSession();
+        if (activityObject) clearTimedSessionFor(activityObject.activityId);
         return;
       }
       const boundedTargetMs = Math.max(targetEpochMs, activityObject.segmentStartTimestamp);
@@ -3533,7 +3555,7 @@
         });
       }
       stampActivityModified(activityObject);
-      clearTimedSession();
+      clearTimedSessionFor(activityObject.activityId);
       commitChange();
       // Chime is isolated AFTER state is committed and re-rendered, so even if the
       // audio API throws/blocks (iOS without a recent gesture) the stop still lands
@@ -3547,13 +3569,22 @@
       // Called once per second from the tick (both running and idle branches — the
       // countdown's activity may not be the currently viewed one) and on visibility
       // regain, so a target that passed under lock is settled immediately.
-      if (timedSessionTargetEpochMs === null) return;
-      if (Date.now() >= timedSessionTargetEpochMs) {
-        const timedActivity = appState.activities.find(a => a.activityId === timedSessionActivityId);
-        stopTimedSessionAtTarget(timedActivity, timedSessionTargetEpochMs);
-      } else {
-        renderTimedSessionRow();
-      }
+      if (activeTimedSessions.size === 0) return;
+      // Snapshot first: stopTimedSessionAtTarget deletes from the map, and mutating a Map
+      // mid-iteration can skip entries — which would strand a second countdown that
+      // expires in the same frame.
+      const pendingEntries = Array.from(activeTimedSessions);
+      const nowMs = Date.now();
+      let anyStopped = false;
+      pendingEntries.forEach(([activityId, targetEpochMs]) => {
+        const timedActivity = appState.activities.find(a => a.activityId === activityId);
+        if (!timedActivity) { clearTimedSessionFor(activityId); return; } // activity deleted mid-countdown
+        if (nowMs >= targetEpochMs) {
+          stopTimedSessionAtTarget(timedActivity, targetEpochMs);
+          anyStopped = true;
+        }
+      });
+      if (!anyStopped) renderTimedSessionRow();
     }
 
     function resumeTimedSessionIfAny() {
@@ -3561,19 +3592,28 @@
       // reload (or reopen after lock) can resume it — or settle it retroactively.
       let storedBlob = null;
       try { storedBlob = JSON.parse(localStorage.getItem(TIMED_SESSION_ACTIVE_KEY) || 'null'); } catch (parseError) { storedBlob = null; }
-      if (!storedBlob || typeof storedBlob.targetEpochMs !== 'number') { clearTimedSession(); return; }
-      const activityObject = appState.activities.find(a => a.activityId === storedBlob.activityId);
-      if (!activityObject || !activityObject.isRunning || activityObject.segmentStartTimestamp === null) {
-        clearTimedSession();
-        return;
-      }
-      timedSessionActivityId = storedBlob.activityId;
-      timedSessionTargetEpochMs = storedBlob.targetEpochMs;
-      if (Date.now() >= timedSessionTargetEpochMs) {
-        stopTimedSessionAtTarget(activityObject, timedSessionTargetEpochMs);
-        return;
-      }
-      requestTimedSessionWakeLock();
+      // v2.20.0 stores a LIST; pre-v2.20 stored a single object. Accept both so a countdown
+      // armed on the older build survives the upgrade instead of being silently dropped.
+      const storedList = Array.isArray(storedBlob)
+        ? storedBlob
+        : (storedBlob && typeof storedBlob.targetEpochMs === 'number' ? [storedBlob] : []);
+      activeTimedSessions.clear();
+      let anyPending = false;
+      storedList.forEach(entry => {
+        if (!entry || typeof entry.targetEpochMs !== 'number') return;
+        const activityObject = appState.activities.find(a => a.activityId === entry.activityId);
+        // Drop countdowns whose activity is gone, was stopped elsewhere, or isn't running.
+        if (!activityObject || !activityObject.isRunning || activityObject.segmentStartTimestamp === null) return;
+        if (Date.now() >= entry.targetEpochMs) {
+          // Finished while the app was closed/locked — settle it retroactively.
+          stopTimedSessionAtTarget(activityObject, entry.targetEpochMs);
+          return;
+        }
+        activeTimedSessions.set(entry.activityId, entry.targetEpochMs);
+        anyPending = true;
+      });
+      persistActiveTimedSessions();
+      if (anyPending) requestTimedSessionWakeLock();
     }
 
     function handleLapOrResetPress() {
@@ -3606,13 +3646,12 @@
         // v2.14.0: re-arm the countdown from this fresh segment (if this activity has a
         // duration and it was the one counting down), so the pill matches the new session
         // instead of keeping the old target.
-        if (timedSessionActivityId === currentActivity.activityId && timedSessionTargetEpochMs !== null) {
+        if (getTimedSessionTarget(currentActivity.activityId) !== null) {
           const reArmMinutes = getActivityTimedMinutes(currentActivity);
           if (reArmMinutes != null) {
-            timedSessionTargetEpochMs = currentActivity.segmentStartTimestamp + reArmMinutes * 60000;
-            persistActiveTimedSession(timedSessionActivityId, timedSessionTargetEpochMs);
+            armTimedSession(currentActivity.activityId, currentActivity.segmentStartTimestamp + reArmMinutes * 60000);
           } else {
-            clearTimedSession();
+            clearTimedSessionFor(currentActivity.activityId);
           }
         }
         stampActivityModified(currentActivity);
@@ -3633,7 +3672,7 @@
             currentActivity.sessionStartedAtWallClockMs = null;
             // v2.14.0: a full reset stops the activity, so cancel any countdown armed
             // against it (otherwise it lingers until the next tick self-heals it).
-            if (timedSessionActivityId === currentActivity.activityId) clearTimedSession();
+            clearTimedSessionFor(currentActivity.activityId);
             // Lifetime daimoku is now 0, so the campaign marker must reset too (else the
             // bar would read a stale start point). The target itself is kept.
             currentActivity.campaignStartTotal = 0;
@@ -5542,8 +5581,8 @@
     });
     timedSessionPill.addEventListener('click', () => {
       const currentActivity = getCurrentActivity();
-      const countingHere = timedSessionTargetEpochMs !== null && currentActivity
-        && timedSessionActivityId === currentActivity.activityId && currentActivity.isRunning;
+      const countingHere = currentActivity
+        && getTimedSessionTarget(currentActivity.activityId) !== null && currentActivity.isRunning;
       if (countingHere) return; // no accidental cancel — Stop ends the session
       timedSessionPickerOpen = !timedSessionPickerOpen;
       renderTimedSessionRow();
@@ -5948,7 +5987,7 @@
     function replaceLocalStateWith(remoteStateObject) {
       // N2: the incoming account's activity ids may collide with cached ones.
       lapDailyTotalsCache.clear();
-      clearTimedSession(); // v2.12.0: countdown belongs to the outgoing account's activity
+      clearAllTimedSessions(); // v2.12.0: countdowns belong to the outgoing account's activities
       const activities = Array.isArray(remoteStateObject.activities)
         ? remoteStateObject.activities.map(sanitizeActivity) : [];
       if (activities.length === 0) { resetToFreshState(); return; }
@@ -5966,7 +6005,7 @@
     function resetToFreshState() {
       // N2: activity ids restart from 1 here — drop cached daily maps keyed by old ids.
       lapDailyTotalsCache.clear();
-      clearTimedSession(); // v2.12.0: a countdown must not survive into a fresh state
+      clearAllTimedSessions(); // v2.12.0: countdowns must not survive into a fresh state
       appState.activities = [createActivityShell(1, 'Activity 01')];
       appState.currentActivityId = 1;
       appState.nextActivityId = 2;
@@ -6280,11 +6319,11 @@
       if (document.visibilityState === 'hidden') {
         persistStateToStorage();
         if (currentUser) cloudSync.flushNow();
-      } else if (document.visibilityState === 'visible' && timedSessionTargetEpochMs !== null) {
-        // v2.12.0: settle a countdown that finished under lock immediately, or
-        // re-acquire the wake lock (iOS releases it on hide).
+      } else if (document.visibilityState === 'visible' && activeTimedSessions.size > 0) {
+        // v2.12.0: settle any countdown that finished under lock immediately, or
+        // re-acquire the wake lock (iOS releases it on hide) if any remain pending.
         checkTimedSessionCountdown();
-        if (timedSessionTargetEpochMs !== null) requestTimedSessionWakeLock();
+        if (activeTimedSessions.size > 0) requestTimedSessionWakeLock();
       }
     });
     window.addEventListener('pagehide', () => {
