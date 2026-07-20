@@ -410,6 +410,125 @@
     }
     .timed-chip.is-selected { color: var(--color-text-primary); border-color: var(--color-text-muted); }
 
+    /* Prayers / Goals (v2.13.0): a quiet card between progress and the timed pill.
+       Same soft-surface language as the campaign section; both themes via vars. */
+    /* v2.17.0: slim single-line preview (was a 2-line card) — tap opens the sheet. */
+    .prayer-card {
+      margin: 4px var(--content-gutter) 10px;
+      padding: 8px 14px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .prayer-card-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: none;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--color-text-muted);
+    }
+    .prayer-card-count {
+      margin-left: auto;
+      font-weight: 500;
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .prayer-card-text {
+      font-family: var(--font-ui);
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--color-text-primary);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .prayer-card-text.is-empty { color: var(--color-text-dim); }
+    .prayer-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; max-height: 46vh; overflow-y: auto; }
+    .prayer-row {
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .prayer-row-text {
+      font-family: var(--font-ui);
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--color-text-primary);
+      white-space: pre-line;
+      word-break: break-word;
+    }
+    .prayer-row-meta {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .prayer-row-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .prayer-action {
+      font-family: var(--font-ui);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+    }
+    .prayer-action.fulfill { color: var(--color-accent-start-text); border-color: var(--color-accent-start-text); }
+    .prayer-new-button {
+      font-family: var(--font-ui);
+      width: 100%;
+      margin-top: 12px;
+      padding: 11px;
+      border-radius: 12px;
+      border: 1px dashed var(--color-border);
+      background: transparent;
+      color: var(--color-text-muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .prayer-section-label {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--color-text-dim);
+      margin: 14px 0 0;
+      cursor: pointer;
+    }
+    .prayer-sync-hint {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      color: var(--color-text-muted);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+    .edit-modal-textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: none;
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--color-text-primary);
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      user-select: text; -webkit-user-select: text;
+    }
+
     .timer-display-value .digits-centiseconds {
       font-weight: 200;
       color: var(--color-text-primary);
@@ -475,6 +594,22 @@
       padding-left: var(--content-gutter);
     }
     .laps-section::-webkit-scrollbar { display: none; }
+    /* v2.17.0: collapsible sessions header — list is collapsed by default. */
+    .laps-toggle-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px var(--content-gutter) 6px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .laps-toggle-chevron { font-size: 10px; }
 
     .laps-empty-state {
       text-align: center;
@@ -1327,6 +1462,9 @@
     .day-lap-when { font-family: var(--font-ui); font-size: 13px; color: var(--color-text-muted); }
     .day-lap-dur { font-size: 17px; font-weight: 400; color: var(--color-text-primary); letter-spacing: -0.01em; }
     .day-empty { padding: 20px 0; text-align: center; color: var(--color-text-muted); font-size: 13px; }
+    /* In-progress (uncommitted) session row in the day sheet — see openStatsDayDetail. */
+    .day-lap-row.is-live .day-lap-num { color: var(--color-accent-start-text); }
+    .day-lap-row.is-live .day-lap-dur { color: var(--color-text-muted); }
 
     .stats-empty-state {
       padding: 80px var(--content-gutter) 40px;
@@ -1406,6 +1544,11 @@
     <div class="goal-nudge" id="goalNudge"></div>
   </section>
 
+  <div class="prayer-card" id="prayerCard" style="display:none">
+    <div class="prayer-card-header"><span id="prayerCardLabel">PRAYER</span><span class="prayer-card-count" id="prayerCardCount"></span></div>
+    <div class="prayer-card-text" id="prayerCardText"></div>
+  </div>
+
   <div class="timed-session-row" id="timedSessionRow" style="display:none">
     <button class="timed-pill" id="timedSessionPill" aria-label="Timed session duration"></button>
     <div class="timed-chips" id="timedSessionChips" style="display:none"></div>
@@ -1416,6 +1559,10 @@
     <button class="control-button primary-action" id="startStopButton">Start</button>
   </section>
 
+  <div class="laps-toggle-header" id="lapsToggleHeader" style="display:none">
+    <span class="laps-toggle-chevron" id="lapsToggleChevron">▸</span>
+    <span id="lapsToggleLabel">SESSIONS</span>
+  </div>
   <section class="laps-section" id="lapsSection">
     <div class="lap-row lap-row-live" id="liveLapRow" style="display:none">
       <div class="lap-row-main">
@@ -1564,6 +1711,19 @@
     </div>
   </div>
 
+  <div class="sheet-backdrop" id="prayerSheetBackdrop">
+    <div class="sheet">
+      <span class="sheet-handle"></span>
+      <h3 class="sheet-title" id="prayerSheetTitle">Prayers</h3>
+      <div class="prayer-list" id="prayerActiveList"></div>
+      <button class="prayer-new-button" id="prayerNewButton">＋ New</button>
+      <p class="prayer-section-label" id="prayerFulfilledToggle" style="display:none"></p>
+      <div class="prayer-list" id="prayerFulfilledList" style="display:none"></div>
+      <p class="prayer-sync-hint" id="prayerSyncHint" style="display:none"></p>
+      <button class="control-button secondary-action" id="prayerSheetCloseButton" style="margin-top:14px;width:100%">Close</button>
+    </div>
+  </div>
+
   <div class="sheet-backdrop" id="accountSheetBackdrop">
     <div class="sheet">
       <span class="sheet-handle"></span>
@@ -1688,6 +1848,7 @@
       </div>
       <input class="edit-modal-input" id="editModalInput" type="text" inputmode="decimal"
              autocomplete="off" autocorrect="off" spellcheck="false" />
+      <textarea class="edit-modal-textarea" id="editModalTextarea" maxlength="500" style="display:none" placeholder=""></textarea>
       <div class="edit-modal-format-hint" id="editModalFormatHint"></div>
       <div class="edit-modal-actions">
         <button class="edit-modal-button cancel-action" id="editModalCancelButton">Cancel</button>
@@ -1702,7 +1863,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.12.0';
+    const APP_VERSION = '2.17.0';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -1736,25 +1897,22 @@
     // (localStorage); the active countdown is also stored locally so a page reload
     // resumes it — and if the target passed while backgrounded/locked, the session is
     // stopped retroactively crediting exactly the target. Nothing here is synced.
-    const TIMED_SESSION_MINUTES_KEY = 'chronograph:timedSessionMinutes:v1';
     const TIMED_SESSION_ACTIVE_KEY = 'chronograph:timedSessionActive:v1';
     const TIMED_SESSION_CHOICES = [5, 10, 15, 20, 30, 45, 60, 90];
 
-    function loadTimedSessionMinutes() {
-      try {
-        const storedMinutes = parseInt(localStorage.getItem(TIMED_SESSION_MINUTES_KEY), 10);
-        // Any whole minute from the chips OR the custom wheel (max 5h59m) is valid.
-        return Number.isInteger(storedMinutes) && storedMinutes >= 1 && storedMinutes <= 359 ? storedMinutes : null;
-      } catch (storageError) { return null; }
+    // v2.14.0: the chosen auto-stop duration now lives PER ACTIVITY (activity.timedSessionMinutes),
+    // so each activity remembers its own timer independently and it syncs with the activity.
+    function getActivityTimedMinutes(activityObject) {
+      if (!activityObject) return null;
+      const minutesValue = activityObject.timedSessionMinutes;
+      return (typeof minutesValue === 'number' && minutesValue >= 1 && minutesValue <= 1439) ? minutesValue : null;
     }
-    function saveTimedSessionMinutes(minutesToSave) {
-      try {
-        if (minutesToSave == null) localStorage.removeItem(TIMED_SESSION_MINUTES_KEY);
-        else localStorage.setItem(TIMED_SESSION_MINUTES_KEY, String(minutesToSave));
-      } catch (storageError) { /* storage unavailable */ }
+    function setActivityTimedMinutes(activityObject, minutesValue) {
+      if (!activityObject) return;
+      activityObject.timedSessionMinutes = minutesValue;
+      stampActivityModified(activityObject);
+      commitChange();
     }
-
-    let timedSessionMinutes = loadTimedSessionMinutes();  // sticky selection, null = off
     let timedSessionActivityId = null;                    // which activity the countdown belongs to
     let timedSessionTargetEpochMs = null;                 // wall-clock auto-stop moment
     let timedSessionPickerOpen = false;
@@ -1804,6 +1962,83 @@
       } catch (audioError) { /* audio unavailable */ }
     }
 
+    // ============ Prayers / Goals (v2.13.0) ============
+    // Per-activity written intentions ("Prayer" on chant, "Goal" elsewhere). Multiple
+    // active per activity; fulfilled ones are archived with dates; deletions are
+    // tombstones so a merge can never resurrect them. Synced in a SEPARATE Supabase
+    // column (user_state.prayers) so older cached builds — whose upserts don't include
+    // that column — physically cannot wipe them (the v2.10.0 lesson). Local cache is
+    // per-user so account switches can't leak prayers across accounts.
+    const PRAYERS_LOCAL_KEY_PREFIX = 'chronograph:prayers:v1:';
+    const PRAYER_TEXT_MAX = 500;
+
+    let prayersState = { prayers: [] };
+    let prayersCloudColumnAvailable = true; // flips false if the column doesn't exist yet
+    let prayerSheetFulfilledOpen = false;
+
+    function prayersLocalKey() {
+      return PRAYERS_LOCAL_KEY_PREFIX + (currentUser && currentUser.id ? currentUser.id : 'local');
+    }
+    function generatePrayerId() {
+      return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    }
+    function sanitizePrayerEntry(rawPrayer) {
+      if (!rawPrayer || typeof rawPrayer.prayerId !== 'string') return null;
+      const status = ['active', 'fulfilled', 'deleted'].includes(rawPrayer.status) ? rawPrayer.status : 'active';
+      return {
+        prayerId: rawPrayer.prayerId,
+        activityId: typeof rawPrayer.activityId === 'number' ? rawPrayer.activityId : null,
+        text: typeof rawPrayer.text === 'string' ? rawPrayer.text.slice(0, PRAYER_TEXT_MAX) : '',
+        status: status,
+        createdAtMs: typeof rawPrayer.createdAtMs === 'number' ? rawPrayer.createdAtMs : 0,
+        fulfilledAtMs: typeof rawPrayer.fulfilledAtMs === 'number' ? rawPrayer.fulfilledAtMs : null,
+        lastModifiedMs: typeof rawPrayer.lastModifiedMs === 'number' ? rawPrayer.lastModifiedMs : 0,
+      };
+    }
+    function sanitizePrayersBlob(rawBlob) {
+      const prayerList = rawBlob && Array.isArray(rawBlob.prayers) ? rawBlob.prayers : [];
+      return { prayers: prayerList.map(sanitizePrayerEntry).filter(Boolean) };
+    }
+    function mergePrayersBlobs(localBlob, remoteBlob) {
+      // Union by prayerId; newest lastModifiedMs wins per prayer (tombstones included).
+      const mergedById = new Map();
+      sanitizePrayersBlob(localBlob).prayers.forEach(p => mergedById.set(p.prayerId, p));
+      sanitizePrayersBlob(remoteBlob).prayers.forEach(p => {
+        const existing = mergedById.get(p.prayerId);
+        if (!existing || p.lastModifiedMs > existing.lastModifiedMs) mergedById.set(p.prayerId, p);
+      });
+      return { prayers: Array.from(mergedById.values()) };
+    }
+    function loadPrayersForCurrentUser() {
+      try {
+        const rawStored = localStorage.getItem(prayersLocalKey());
+        prayersState = sanitizePrayersBlob(rawStored ? JSON.parse(rawStored) : null);
+      } catch (storageError) { prayersState = { prayers: [] }; }
+    }
+    function persistPrayers() {
+      try { localStorage.setItem(prayersLocalKey(), JSON.stringify(prayersState)); } catch (storageError) { /* full/unavailable */ }
+      if (currentUser) cloudSync.queueWrite(JSON.stringify(appState)); // prayers ride the same upsert
+    }
+    function applyRemotePrayers(remoteBlob) {
+      prayersState = mergePrayersBlobs(prayersState, remoteBlob);
+      try { localStorage.setItem(prayersLocalKey(), JSON.stringify(prayersState)); } catch (storageError) { /* noop */ }
+      renderPrayerCard();
+      if (document.getElementById('prayerSheetBackdrop').classList.contains('is-visible')) renderPrayerSheet();
+    }
+    function activePrayersFor(activityId) {
+      return prayersState.prayers
+        .filter(p => p.activityId === activityId && p.status === 'active')
+        .sort((a, b) => a.createdAtMs - b.createdAtMs);
+    }
+    function fulfilledPrayersFor(activityId) {
+      return prayersState.prayers
+        .filter(p => p.activityId === activityId && p.status === 'fulfilled')
+        .sort((a, b) => (b.fulfilledAtMs || 0) - (a.fulfilledAtMs || 0));
+    }
+    function prayerNoun(activityObject) {
+      return activityIsChant(activityObject) ? 'Prayer' : 'Goal';
+    }
+
     // ============ State ============
     const appState = {
       activities: [],
@@ -1836,6 +2071,7 @@
         goalPeriod: 'weekly',                    // count activities: goal window 'daily'|'weekly'|'monthly' (ignored for timed)
         chantTargetTotal: 0,                     // chant activities: cumulative daimoku goal (e.g. 1,000,000); 0 = none
         campaignStartTotal: 0,                   // chant activities: daimoku total when the current campaign began (reset marker)
+        timedSessionMinutes: null,               // this activity's auto-stop duration in minutes; null = off (per-activity, v2.14.0)
       };
     }
 
@@ -2025,6 +2261,9 @@
         ? Math.round(rawActivity.chantTargetTotal) : 0;
       sanitized.campaignStartTotal = (typeof rawActivity.campaignStartTotal === 'number' && rawActivity.campaignStartTotal > 0)
         ? Math.round(rawActivity.campaignStartTotal) : 0;
+      sanitized.timedSessionMinutes = (typeof rawActivity.timedSessionMinutes === 'number'
+        && rawActivity.timedSessionMinutes >= 1 && rawActivity.timedSessionMinutes <= 1439)
+        ? Math.round(rawActivity.timedSessionMinutes) : null;
       // Drop any laps that are tombstoned (defensive; merge also enforces this).
       if (sanitized.deletedLapIds.length) {
         const tombstoned = new Set(sanitized.deletedLapIds);
@@ -2114,6 +2353,11 @@
     const timedSessionRow = document.getElementById('timedSessionRow');
     const timedSessionPill = document.getElementById('timedSessionPill');
     const timedSessionChips = document.getElementById('timedSessionChips');
+    const editModalTextarea = document.getElementById('editModalTextarea');
+    const prayerCard = document.getElementById('prayerCard');
+    const prayerCardLabel = document.getElementById('prayerCardLabel');
+    const prayerCardCount = document.getElementById('prayerCardCount');
+    const prayerCardText = document.getElementById('prayerCardText');
     const sessionStartedLabel = document.getElementById('sessionStartedLabel');
     const startStopButton = document.getElementById('startStopButton');
     const lapResetButton = document.getElementById('lapResetButton');
@@ -2401,8 +2645,8 @@
       }).join('');
       Array.from(timedSessionChips.children).forEach(chipButton => chipButton.addEventListener('click', () => {
         if (chipButton.dataset.minutes === 'custom') { openTimedCustomModal(); return; }
-        timedSessionMinutes = chipButton.dataset.minutes === 'off' ? null : Number(chipButton.dataset.minutes);
-        saveTimedSessionMinutes(timedSessionMinutes);
+        const chosenMinutes = chipButton.dataset.minutes === 'off' ? null : Number(chipButton.dataset.minutes);
+        setActivityTimedMinutes(getCurrentActivity(), chosenMinutes);
         timedSessionPickerOpen = false;
         renderTimedSessionRow();
       }));
@@ -2416,6 +2660,7 @@
         return;
       }
       timedSessionRow.style.display = '';
+      const activityTimedMinutes = getActivityTimedMinutes(currentActivity);
       const countingHere = timedSessionTargetEpochMs !== null
         && timedSessionActivityId === currentActivity.activityId
         && currentActivity.isRunning;
@@ -2425,13 +2670,13 @@
         if (!timedSessionChips.childElementCount) buildTimedSessionChips();
         Array.from(timedSessionChips.children).forEach(chipButton => {
           if (chipButton.dataset.minutes === 'custom') {
-            const customActive = isCustomTimedMinutes(timedSessionMinutes);
+            const customActive = isCustomTimedMinutes(activityTimedMinutes);
             chipButton.classList.toggle('is-selected', customActive);
-            chipButton.textContent = customActive ? `Custom · ${formatTimedMinutesLabel(timedSessionMinutes)}` : 'Custom';
+            chipButton.textContent = customActive ? `Custom · ${formatTimedMinutesLabel(activityTimedMinutes)}` : 'Custom';
             return;
           }
           const chipMinutes = chipButton.dataset.minutes === 'off' ? null : Number(chipButton.dataset.minutes);
-          chipButton.classList.toggle('is-selected', chipMinutes === timedSessionMinutes);
+          chipButton.classList.toggle('is-selected', chipMinutes === activityTimedMinutes);
         });
         return;
       }
@@ -2441,12 +2686,149 @@
       if (countingHere) {
         timedSessionPill.className = 'timed-pill is-counting';
         timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatCountdownRemaining(timedSessionTargetEpochMs - Date.now())}`;
-      } else if (timedSessionMinutes != null) {
+      } else if (activityTimedMinutes != null) {
         timedSessionPill.className = 'timed-pill is-armed';
-        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatTimedMinutesLabel(timedSessionMinutes)}`;
+        timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}${formatTimedMinutesLabel(activityTimedMinutes)}`;
       } else {
         timedSessionPill.className = 'timed-pill';
         timedSessionPill.innerHTML = `${TIMED_PILL_ICON_SVG}Timed`;
+      }
+    }
+
+    // ============ Prayers / Goals — UI (v2.13.0) ============
+    function renderPrayerCard() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) { prayerCard.style.display = 'none'; return; }
+      prayerCard.style.display = '';
+      const nounUpper = prayerNoun(currentActivity).toUpperCase();
+      const activeList = activePrayersFor(currentActivity.activityId);
+      prayerCardLabel.textContent = activeList.length > 1 ? nounUpper + 'S' : nounUpper;
+      prayerCardCount.textContent = activeList.length > 1 ? String(activeList.length) : '';
+      if (activeList.length === 0) {
+        prayerCardText.textContent = '＋ Write a ' + prayerNoun(currentActivity).toLowerCase();
+        prayerCardText.classList.add('is-empty');
+      } else {
+        prayerCardText.textContent = activeList[0].text;
+        prayerCardText.classList.remove('is-empty');
+      }
+    }
+
+    function formatPrayerDate(epochMs) {
+      const dateObject = new Date(epochMs);
+      return dateObject.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function renderPrayerSheet() {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const noun = prayerNoun(currentActivity);
+      document.getElementById('prayerSheetTitle').textContent = noun + 's — ' + currentActivity.activityName;
+      document.getElementById('prayerNewButton').textContent = '＋ New ' + noun.toLowerCase();
+      const activeListElement = document.getElementById('prayerActiveList');
+      const activeList = activePrayersFor(currentActivity.activityId);
+      activeListElement.innerHTML = activeList.length === 0
+        ? `<div class="prayer-row"><div class="prayer-row-text" style="color:var(--color-text-dim)">Nothing written yet.</div></div>`
+        : activeList.map(p => `
+          <div class="prayer-row" data-prayer-id="${p.prayerId}">
+            <div class="prayer-row-text"></div>
+            <div class="prayer-row-meta">Since ${formatPrayerDate(p.createdAtMs)}</div>
+            <div class="prayer-row-actions">
+              <button class="prayer-action" data-prayer-act="edit">Edit</button>
+              <button class="prayer-action fulfill" data-prayer-act="fulfill">Fulfilled ✓</button>
+              <button class="prayer-action" data-prayer-act="delete">✕</button>
+            </div>
+          </div>`).join('');
+      activeList.forEach(p => {
+        const row = activeListElement.querySelector(`[data-prayer-id="${p.prayerId}"] .prayer-row-text`);
+        if (row) row.textContent = p.text; // textContent — prayer text is never parsed as HTML
+      });
+      const fulfilledList = fulfilledPrayersFor(currentActivity.activityId);
+      const fulfilledToggle = document.getElementById('prayerFulfilledToggle');
+      const fulfilledListElement = document.getElementById('prayerFulfilledList');
+      if (fulfilledList.length === 0) {
+        fulfilledToggle.style.display = 'none';
+        fulfilledListElement.style.display = 'none';
+      } else {
+        fulfilledToggle.style.display = '';
+        fulfilledToggle.textContent = (prayerSheetFulfilledOpen ? '▾ ' : '▸ ') + 'FULFILLED (' + fulfilledList.length + ')';
+        fulfilledListElement.style.display = prayerSheetFulfilledOpen ? '' : 'none';
+        fulfilledListElement.innerHTML = fulfilledList.map(p => `
+          <div class="prayer-row" data-prayer-id="${p.prayerId}">
+            <div class="prayer-row-text"></div>
+            <div class="prayer-row-meta">${formatPrayerDate(p.createdAtMs)} → fulfilled ${formatPrayerDate(p.fulfilledAtMs || p.lastModifiedMs)}</div>
+            <div class="prayer-row-actions"><button class="prayer-action" data-prayer-act="delete">✕</button></div>
+          </div>`).join('');
+        fulfilledList.forEach(p => {
+          const row = fulfilledListElement.querySelector(`[data-prayer-id="${p.prayerId}"] .prayer-row-text`);
+          if (row) row.textContent = p.text;
+        });
+      }
+      const syncHint = document.getElementById('prayerSyncHint');
+      if (currentUser && !prayersCloudColumnAvailable) {
+        syncHint.style.display = '';
+        syncHint.textContent = 'Saved on this device. To sync across devices, add a nullable jsonb column named "prayers" to the user_state table in Supabase — takes a minute, then Sync now.';
+      } else {
+        syncHint.style.display = 'none';
+      }
+    }
+
+    function findPrayerById(prayerId) {
+      return prayersState.prayers.find(p => p.prayerId === prayerId) || null;
+    }
+
+    function openPrayerEditor(existingPrayerId) {
+      const currentActivity = getCurrentActivity();
+      if (!currentActivity) return;
+      const noun = prayerNoun(currentActivity);
+      const existingPrayer = existingPrayerId ? findPrayerById(existingPrayerId) : null;
+      editModalContext.modeKind = 'prayer-edit';
+      editModalContext.targetPrayerId = existingPrayerId || null;
+      editModalTitle.textContent = existingPrayer ? 'Edit ' + noun.toLowerCase() : 'New ' + noun.toLowerCase();
+      resetEditModalRegions();
+      editModalTextarea.style.display = '';
+      editModalTextarea.placeholder = noun === 'Prayer'
+        ? 'What are you chanting for?'
+        : 'What are you working toward?';
+      editModalTextarea.value = existingPrayer ? existingPrayer.text : '';
+      editModalSaveButton.textContent = 'Save';
+      showEditModal();
+      setTimeout(() => editModalTextarea.focus(), 0);
+    }
+
+    function markPrayerFulfilled(prayerId) {
+      const prayerEntry = findPrayerById(prayerId);
+      if (!prayerEntry) return;
+      prayerEntry.status = 'fulfilled';
+      prayerEntry.fulfilledAtMs = Date.now();
+      prayerEntry.lastModifiedMs = Date.now();
+      persistPrayers();
+      renderPrayerCard();
+      renderPrayerSheet();
+    }
+
+    function deletePrayer(prayerId) {
+      const prayerEntry = findPrayerById(prayerId);
+      if (!prayerEntry) return;
+      prayerEntry.status = 'deleted'; // tombstone — merges can never resurrect it
+      prayerEntry.lastModifiedMs = Date.now();
+      persistPrayers();
+      renderPrayerCard();
+      renderPrayerSheet();
+    }
+
+    function handlePrayerListClick(clickEvent) {
+      const actionButton = clickEvent.target.closest('[data-prayer-act]');
+      if (!actionButton) return;
+      const rowElement = actionButton.closest('[data-prayer-id]');
+      if (!rowElement) return;
+      const prayerId = rowElement.dataset.prayerId;
+      const action = actionButton.dataset.prayerAct;
+      if (action === 'edit') { openPrayerEditor(prayerId); return; }
+      if (action === 'fulfill') { markPrayerFulfilled(prayerId); return; }
+      if (action === 'delete') {
+        const currentActivity = getCurrentActivity();
+        const nounLower = currentActivity ? prayerNoun(currentActivity).toLowerCase() : 'entry';
+        openConfirmModal('Delete ' + nounLower + '?', 'This removes it permanently, including from the fulfilled list.', 'Delete', () => deletePrayer(prayerId));
       }
     }
 
@@ -2493,8 +2875,32 @@
       }
     }
 
+    // v2.17.0: the sessions/visits history is collapsed by default to shorten the main
+    // screen; the chevron header shows the count. Choice persists per device.
+    const SESSIONS_LIST_OPEN_KEY = 'chronograph:sessionsListOpen:v1';
+    function loadSessionsListOpen() {
+      try { return localStorage.getItem(SESSIONS_LIST_OPEN_KEY) === '1'; } catch (storageError) { return false; }
+    }
+    function saveSessionsListOpen(isOpen) {
+      try { localStorage.setItem(SESSIONS_LIST_OPEN_KEY, isOpen ? '1' : '0'); } catch (storageError) { /* unavailable */ }
+    }
+    let sessionsListOpen = loadSessionsListOpen();
+
+    function renderLapsToggleHeader() {
+      const currentActivity = getCurrentActivity();
+      const headerElement = document.getElementById('lapsToggleHeader');
+      if (!currentActivity) { headerElement.style.display = 'none'; lapsSection.style.display = 'none'; return; }
+      const committedCount = currentActivity.laps.length;
+      const nounUpper = activityIsCount(currentActivity) ? 'VISITS' : 'SESSIONS';
+      headerElement.style.display = '';
+      document.getElementById('lapsToggleLabel').textContent = `${nounUpper} (${committedCount})`;
+      document.getElementById('lapsToggleChevron').textContent = sessionsListOpen ? '▾' : '▸';
+      lapsSection.style.display = sessionsListOpen ? '' : 'none';
+    }
+
     function renderLapsList() {
       const currentActivity = getCurrentActivity();
+      renderLapsToggleHeader();
       // Remove only committed lap rows (exclude the live lap row)
       const existingRows = lapsSection.querySelectorAll('.lap-row:not(.lap-row-live)');
       existingRows.forEach(rowElement => rowElement.remove());
@@ -2603,6 +3009,7 @@
       renderSessionStartedLabel();
       renderControlButtons();
       renderTimedSessionRow();
+      renderPrayerCard();
       renderLapsList();
       renderGoalNudge();
       renderDaimokuCounter();
@@ -3052,10 +3459,11 @@
           currentActivity.sessionStartedAtWallClockMs = Date.now();
         }
         currentActivity.isRunning = true;
-        // v2.12.0: arm the timed-session countdown if a duration is selected.
-        if (timedSessionMinutes != null) {
+        // v2.12.0/v2.14.0: arm the countdown from THIS activity's selected duration.
+        const armMinutes = getActivityTimedMinutes(currentActivity);
+        if (armMinutes != null) {
           timedSessionActivityId = currentActivity.activityId;
-          timedSessionTargetEpochMs = currentActivity.segmentStartTimestamp + timedSessionMinutes * 60000;
+          timedSessionTargetEpochMs = currentActivity.segmentStartTimestamp + armMinutes * 60000;
           persistActiveTimedSession(timedSessionActivityId, timedSessionTargetEpochMs);
           requestTimedSessionWakeLock();
         }
@@ -3094,8 +3502,13 @@
       }
       stampActivityModified(activityObject);
       clearTimedSession();
-      if (document.visibilityState === 'visible') playTimedSessionChime();
       commitChange();
+      // Chime is isolated AFTER state is committed and re-rendered, so even if the
+      // audio API throws/blocks (iOS without a recent gesture) the stop still lands
+      // and the UI updates. commitChange() already re-renders controls + pill.
+      if (document.visibilityState === 'visible') {
+        try { playTimedSessionChime(); } catch (chimeError) { /* audio unavailable */ }
+      }
     }
 
     function checkTimedSessionCountdown() {
@@ -3158,6 +3571,18 @@
         currentActivity.accumulatedBeforeSegmentMs = totalAtBankMs;
         currentActivity.segmentStartTimestamp = Date.now();
         // isRunning stays true — a fresh session begins immediately.
+        // v2.14.0: re-arm the countdown from this fresh segment (if this activity has a
+        // duration and it was the one counting down), so the pill matches the new session
+        // instead of keeping the old target.
+        if (timedSessionActivityId === currentActivity.activityId && timedSessionTargetEpochMs !== null) {
+          const reArmMinutes = getActivityTimedMinutes(currentActivity);
+          if (reArmMinutes != null) {
+            timedSessionTargetEpochMs = currentActivity.segmentStartTimestamp + reArmMinutes * 60000;
+            persistActiveTimedSession(timedSessionActivityId, timedSessionTargetEpochMs);
+          } else {
+            clearTimedSession();
+          }
+        }
         stampActivityModified(currentActivity);
         commitChange();
       } else {
@@ -3174,6 +3599,9 @@
             currentActivity.laps = [];
             currentActivity.nextLapId = 1;
             currentActivity.sessionStartedAtWallClockMs = null;
+            // v2.14.0: a full reset stops the activity, so cancel any countdown armed
+            // against it (otherwise it lingers until the next tick self-heals it).
+            if (timedSessionActivityId === currentActivity.activityId) clearTimedSession();
             // Lifetime daimoku is now 0, so the campaign marker must reset too (else the
             // bar would read a stale start point). The target itself is kept.
             currentActivity.campaignStartTotal = 0;
@@ -3312,8 +3740,9 @@
 
     // ============ Modal: shared open/close + dispatch on save ============
     const editModalContext = {
-      modeKind: null,       // 'lap-duration' | 'live-lap-duration' | 'activity-rename' | 'activity-delete' | 'confirm'
+      modeKind: null,       // 'lap-duration' | 'live-lap-duration' | 'activity-rename' | 'activity-delete' | 'confirm' | 'timed-custom' | 'prayer-edit'
       targetLapId: null,
+      targetPrayerId: null,
     };
     let editModalWheelController = null;
 
@@ -3324,6 +3753,7 @@
       editModalWheel.style.display = 'none';
       editModalDateTimeRow.style.display = 'none';
       editModalInput.style.display = 'none';
+      editModalTextarea.style.display = 'none';
       editModalFormatHint.textContent = '';
       editModalFormatHint.classList.remove('is-error');
     }
@@ -3482,7 +3912,7 @@
       editModalWheelController = createWheelPicker(
         editModalWheel,
         [
-          { key: 'hours', length: 6, pad2: false, unit: 'h' },
+          { key: 'hours', length: 24, pad2: false, unit: 'h' },
           { key: 'minutes', length: 60, pad2: true, unit: 'm' },
         ],
         (values) => { editModalWheelCaption.textContent = formatTimedCustomCaption(values); }
@@ -3496,7 +3926,7 @@
       editModalContext.targetLapId = null;
       editModalTitle.textContent = 'Timed session';
       resetEditModalRegions();
-      mountTimedCustomWheel(timedSessionMinutes != null ? timedSessionMinutes : 15);
+      mountTimedCustomWheel(getActivityTimedMinutes(getCurrentActivity()) != null ? getActivityTimedMinutes(getCurrentActivity()) : 15);
       editModalSaveButton.textContent = 'Set';
       showEditModal();
     }
@@ -3521,13 +3951,39 @@
     }
 
     function handleEditModalSave() {
+      if (editModalContext.modeKind === 'prayer-edit') {
+        const prayerText = editModalTextarea.value.trim().slice(0, PRAYER_TEXT_MAX);
+        hideEditModal();
+        if (!prayerText) return; // empty save = cancel
+        const currentActivity = getCurrentActivity();
+        if (editModalContext.targetPrayerId) {
+          const prayerEntry = findPrayerById(editModalContext.targetPrayerId);
+          if (prayerEntry) {
+            prayerEntry.text = prayerText;
+            prayerEntry.lastModifiedMs = Date.now();
+          }
+        } else if (currentActivity) {
+          prayersState.prayers.push({
+            prayerId: generatePrayerId(),
+            activityId: currentActivity.activityId,
+            text: prayerText,
+            status: 'active',
+            createdAtMs: Date.now(),
+            fulfilledAtMs: null,
+            lastModifiedMs: Date.now(),
+          });
+        }
+        persistPrayers();
+        renderPrayerCard();
+        renderPrayerSheet();
+        return;
+      }
       if (editModalContext.modeKind === 'timed-custom') {
         const wheelValues = editModalWheelController ? editModalWheelController.getValues() : null;
         const totalMinutes = wheelValues ? (wheelValues.hours || 0) * 60 + (wheelValues.minutes || 0) : 0;
         hideEditModal();
         if (totalMinutes >= 1) {
-          timedSessionMinutes = totalMinutes;
-          saveTimedSessionMinutes(timedSessionMinutes);
+          setActivityTimedMinutes(getCurrentActivity(), totalMinutes);
           timedSessionPickerOpen = false;
           renderTimedSessionRow();
         }
@@ -3766,6 +4222,20 @@
       }
       const lastLapId = laps.length > 0 ? laps[laps.length - 1].lapId : 0;
       return `${laps.length}|${lastLapId}|${splitSum}|${recordedSum}`;
+    }
+
+    // Minutes a single committed session contributed to one specific local day. Uses the
+    // same midnight-split math as the day totals, so a session spanning midnight reports
+    // only that day's share (e.g. a 20h session ending 6:45 AM → 13h18m on the start day,
+    // 6h45m on the end day).
+    function getLapMinutesOnDate(activity, lapIndex, dateObject) {
+      const lapEntry = activity.laps[lapIndex];
+      if (!lapEntry || lapEntry.recordedAtWallClockMs == null) return 0;
+      const previousSplitMs = lapIndex === 0 ? 0 : activity.laps[lapIndex - 1].splitTimeMs;
+      const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
+      const lapByDay = {};
+      addIntervalMinutesByDay(lapByDay, lapEntry.recordedAtWallClockMs, lapDurationMs);
+      return lapByDay[formatDateKey(dateObject)] || 0;
     }
 
     function getActivityLapDailyTotalsMinutes(activity) {
@@ -4285,13 +4755,47 @@
       document.getElementById('statsDayDetailPctText').textContent = `${pct}%`;
       // Per-day session list: pull all laps recorded that day
       const dayLapList = document.getElementById('statsDayLapList');
+      // v2.15.0: an uncommitted (still-running) session already counts toward the day TOTAL
+      // above via getMinutesForDate, but it is not a lap yet, so it could never appear in
+      // this list — which made the numbers look impossible (e.g. a 13h day listing one 12m
+      // session). Surface its slice for this day explicitly, using the same midnight-split
+      // math as the total, so the two always reconcile.
+      let inProgressRowHtml = '';
+      if (!dayDetailIsCount) {
+        const uncommittedMs = getUncommittedSessionMsNow(currentActivity);
+        if (uncommittedMs > 0) {
+          const liveByDay = {};
+          addIntervalMinutesByDay(liveByDay, Date.now(), uncommittedMs);
+          const liveMinutesOnDay = liveByDay[formatDateKey(targetDate)] || 0;
+          if (liveMinutesOnDay > 0) {
+            const uncommittedStartMs = Date.now() - uncommittedMs;
+            const startedOnThisDay = isSameLocalDate(new Date(uncommittedStartMs), targetDate);
+            const inProgressWhenText = startedOnThisDay
+              ? `In progress · from ${new Date(uncommittedStartMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+              : 'In progress · carried from previous day';
+            inProgressRowHtml = `<div class="day-lap-row is-live">
+              <span class="day-lap-num">•</span>
+              <span class="day-lap-when">${inProgressWhenText}</span>
+              <span class="day-lap-dur">${formatHoursMinutes(liveMinutesOnDay)}</span>
+            </div>`;
+          }
+        }
+      }
       const lapsOnDay = currentActivity.laps
         .map((lapEntry, lapIndex) => ({ lapEntry, lapIndex }))
-        .filter(({ lapEntry }) => {
+        .filter(({ lapEntry, lapIndex }) => {
           if (lapEntry.recordedAtWallClockMs == null) return false;
-          return isSameLocalDate(new Date(lapEntry.recordedAtWallClockMs), targetDate);
+          const endedOnThisDay = isSameLocalDate(new Date(lapEntry.recordedAtWallClockMs), targetDate);
+          // Counts are points in time, so the recorded date is the only sensible filter.
+          if (dayDetailIsCount) return endedOnThisDay;
+          // v2.16.0: timed sessions are intervals. List any session whose wall-clock span
+          // touched this day — the day TOTAL already counts its midnight-split share, so
+          // filtering by end-date alone hid a spanning session from the day it started on
+          // and showed its FULL duration on the day it ended. Keep end-date matches too so
+          // nothing that used to appear (e.g. a zero-length session) silently vanishes.
+          return getLapMinutesOnDate(currentActivity, lapIndex, targetDate) > 0 || endedOnThisDay;
         });
-      if (lapsOnDay.length === 0) {
+      if (lapsOnDay.length === 0 && !inProgressRowHtml) {
         dayLapList.innerHTML = `<div class="day-empty">${dayDetailIsCount ? 'No visits recorded for this day.' : 'No sessions recorded for this day.'}</div>`;
       } else {
         dayLapList.innerHTML = lapsOnDay.map(({ lapEntry, lapIndex }, i) => {
@@ -4307,12 +4811,28 @@
           const previousSplitMs = lapIndex === 0 ? 0 : currentActivity.laps[lapIndex - 1].splitTimeMs;
           const lapDurationMs = lapEntry.splitTimeMs - previousSplitMs;
           const lapDurationMinutes = lapDurationMs / 60000;
+          // v2.16.0: show this DAY's share, not the whole session, so the rows always add
+          // up to the total above. Only sessions that actually cross midnight get relabelled.
+          const minutesOnThisDay = getLapMinutesOnDate(currentActivity, lapIndex, targetDate);
+          const spansMultipleDays = lapDurationMinutes - minutesOnThisDay > 0.017; // >1 second elsewhere
+          if (!spansMultipleDays) {
+            return `<div class="day-lap-row">
+              <span class="day-lap-num">${(i + 1).toString().padStart(2, '0')}</span>
+              <span class="day-lap-when">${whenText}</span>
+              <span class="day-lap-dur">${formatHoursMinutes(lapDurationMinutes)}</span>
+            </div>`;
+          }
+          const lapStartDate = new Date(lapEntry.recordedAtWallClockMs - lapDurationMs);
+          const startsOnThisDay = isSameLocalDate(lapStartDate, targetDate);
+          const spanWhenText = startsOnThisDay
+            ? `from ${lapStartDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+            : (isSameLocalDate(new Date(lapEntry.recordedAtWallClockMs), targetDate) ? `ended ${whenText}` : 'all day');
           return `<div class="day-lap-row">
             <span class="day-lap-num">${(i + 1).toString().padStart(2, '0')}</span>
-            <span class="day-lap-when">${whenText}</span>
-            <span class="day-lap-dur">${formatHoursMinutes(lapDurationMinutes)}</span>
+            <span class="day-lap-when">${spanWhenText} · part of ${formatHoursMinutes(lapDurationMinutes)}</span>
+            <span class="day-lap-dur">${formatHoursMinutes(minutesOnThisDay)}</span>
           </div>`;
-        }).join('');
+        }).join('') + inProgressRowHtml;
       }
       showStatsSheet('statsDaySheetBackdrop');
       requestAnimationFrame(() => { requestAnimationFrame(() => { fill.style.width = `${pct}%`; }); });
@@ -4887,12 +5407,14 @@
         renderTimerDisplay();
         updateLiveLapDurationText();
         if (activityIsChant(currentActivity)) renderDaimokuCounter();
+        // v2.14.0: settle the auto-stop countdown every frame (cheap timestamp compare)
+        // so a live screen stops dead-on-time instead of up to a second late.
+        checkTimedSessionCountdown();
         // Once per second: live goal nudge (cheap text update).
         const nowSecond = Math.floor(Date.now() / 1000);
         if (nowSecond !== lastPerSecondRenderSecond) {
           lastPerSecondRenderSecond = nowSecond;
           renderGoalNudge();
-          checkTimedSessionCountdown();
           // Stats display minutes, so refresh on minute boundaries only — avoids
           // rebuilding the chart/heatmap every second (which killed the tap-tooltip
           // and reset heatmap scroll). Skip entirely while the user has a tooltip open.
@@ -4942,6 +5464,24 @@
       }
       requestAnimationFrame(animationFrameTick);
     }
+    document.getElementById('lapsToggleHeader').addEventListener('click', () => {
+      sessionsListOpen = !sessionsListOpen;
+      saveSessionsListOpen(sessionsListOpen);
+      renderLapsToggleHeader();
+    });
+    prayerCard.addEventListener('click', () => {
+      prayerSheetFulfilledOpen = false;
+      renderPrayerSheet();
+      showStatsSheet('prayerSheetBackdrop');
+    });
+    document.getElementById('prayerNewButton').addEventListener('click', () => openPrayerEditor(null));
+    document.getElementById('prayerSheetCloseButton').addEventListener('click', () => hideStatsSheet('prayerSheetBackdrop'));
+    document.getElementById('prayerActiveList').addEventListener('click', handlePrayerListClick);
+    document.getElementById('prayerFulfilledList').addEventListener('click', handlePrayerListClick);
+    document.getElementById('prayerFulfilledToggle').addEventListener('click', () => {
+      prayerSheetFulfilledOpen = !prayerSheetFulfilledOpen;
+      renderPrayerSheet();
+    });
     timedSessionPill.addEventListener('click', () => {
       const currentActivity = getCurrentActivity();
       const countingHere = timedSessionTargetEpochMs !== null && currentActivity
@@ -4950,6 +5490,26 @@
       timedSessionPickerOpen = !timedSessionPickerOpen;
       renderTimedSessionRow();
     });
+    loadPrayersForCurrentUser();
+    renderPrayerCard();
+    // v2.14.0: one-time migration — if a pre-v2.14 global timer selection exists, apply it
+    // to the currently-selected activity (if it has none yet), then drop the old key so it
+    // never runs again. Spares upgraders from re-picking their usual duration.
+    (function migrateLegacyGlobalTimedMinutes() {
+      try {
+        const legacyRaw = localStorage.getItem('chronograph:timedSessionMinutes:v1');
+        if (legacyRaw === null) return;
+        const legacyMinutes = parseInt(legacyRaw, 10);
+        const migrationActivity = getCurrentActivity();
+        if (migrationActivity && getActivityTimedMinutes(migrationActivity) === null
+            && Number.isInteger(legacyMinutes) && legacyMinutes >= 1 && legacyMinutes <= 1439) {
+          migrationActivity.timedSessionMinutes = legacyMinutes;
+          stampActivityModified(migrationActivity);
+          persistStateToStorage();
+        }
+        localStorage.removeItem('chronograph:timedSessionMinutes:v1');
+      } catch (migrationError) { /* migration is best-effort */ }
+    })();
     resumeTimedSessionIfAny();
     requestAnimationFrame(animationFrameTick);
 
@@ -4975,6 +5535,9 @@
     const SYNC_RETRY_MS = 5000;
     const SYNC_WRITE_TIMEOUT_MS = 15000;   // a hung network write resolves to error after this
     const SYNC_READ_TIMEOUT_MS = 15000;    // a hung read (pull) resolves to error after this
+    // S2 sentinel: pull() returns this (not null) when the read genuinely failed, so callers
+    // can distinguish "cloud empty" (null → safe to push) from "read failed" (must not push).
+    const PULL_FAILED = Symbol('pull-failed');
 
     // On-screen debug log: every sync step is recorded here (and to console) so the
     // Account-sheet "diagnostics" panel can show exactly what's happening / where it stalls.
@@ -4994,10 +5557,20 @@
       _inFlight: false,
       lastSyncedAtMs: null,
       status: 'idle',             // 'idle' | 'syncing' | 'synced' | 'error' | 'offline'
+      // Sync gate (S1): stays false from the moment sign-in begins until the initial
+      // pull + merge has completed and this device's reconciled state has been pushed.
+      // While false, queueWrite() saves locally but does NOT push — so a freshly
+      // signed-in device (still showing empty/default state during the ~15s pull) can
+      // never upsert that empty state over real cloud data. Invariant: receive before send.
+      hydrated: false,
 
       // Queue a debounced write (called on every change while signed in).
       queueWrite(serializedState) {
         this._pendingSerialized = serializedState;
+        // S1 gate: until the initial pull+merge+push completes, keep the newest state
+        // pending but do NOT schedule a cloud write. The deliberate push at the end of
+        // activateCloudForUser flips hydrated=true and flushes this pending state then.
+        if (!this.hydrated) return;
         if (this._writeTimer) clearTimeout(this._writeTimer);
         this._writeTimer = setTimeout(() => { this._flush(); }, SYNC_DEBOUNCE_MS);
       },
@@ -5009,6 +5582,10 @@
       },
 
       async _flush() {
+        // S1 hard backstop: never push before the sync gate opens. Covers any path that
+        // reaches _flush directly (e.g. the 'online' retry listener) — not just queueWrite.
+        // The deliberate first push in activateCloudForUser sets hydrated=true beforehand.
+        if (!this.hydrated) { logSync('flush skipped: awaiting initial pull (sync gate closed)'); return; }
         // Resolve any stuck "syncing" state instead of returning silently.
         if (!supabaseClient || !currentUser) {
           if (this.status === 'syncing') this._setStatus(currentUser ? 'error' : 'idle');
@@ -5027,14 +5604,25 @@
         try {
           const stateObject = JSON.parse(serialized);
           // Race the upsert against a timeout so a hung request can't stick on "Syncing…".
-          const result = await Promise.race([
-            supabaseClient.from('user_state').upsert({
-              user_id: currentUser.id,
-              state: stateObject,
-              updated_at: new Date().toISOString(),
-            }),
+          const upsertPayload = {
+            user_id: currentUser.id,
+            state: stateObject,
+            updated_at: new Date().toISOString(),
+          };
+          // v2.13.0: prayers ride in their own column; omitted if it doesn't exist yet.
+          if (prayersCloudColumnAvailable) upsertPayload.prayers = sanitizePrayersBlob(prayersState);
+          let result = await Promise.race([
+            supabaseClient.from('user_state').upsert(upsertPayload),
             new Promise((_, reject) => setTimeout(() => reject(new Error('write timeout (' + (SYNC_WRITE_TIMEOUT_MS / 1000) + 's) — no response from Supabase')), SYNC_WRITE_TIMEOUT_MS)),
           ]);
+          if (result && result.error && prayersCloudColumnAvailable
+              && String(result.error.message || '').toLowerCase().includes('prayers')) {
+            // Column not created yet: degrade gracefully, retry without it.
+            prayersCloudColumnAvailable = false;
+            logSync('prayers column missing — syncing state only (add user_state.prayers jsonb to enable)', true);
+            delete upsertPayload.prayers;
+            result = await supabaseClient.from('user_state').upsert(upsertPayload);
+          }
           if (result && result.error) throw result.error;
           if (this._pendingSerialized === serialized) this._pendingSerialized = null;
           this.lastSyncedAtMs = Date.now();
@@ -5070,21 +5658,32 @@
 
       // Fetch the cloud copy as a parsed object (or null).
       async pull() {
-        if (!supabaseClient || !currentUser) { logSync('pull skipped: client/user not ready', true); return null; }
+        // Return contract (S2): a real state object, or null for a genuinely EMPTY cloud
+        // (new account), or the sentinel PULL_FAILED for a network/error condition — so
+        // activation can tell "cloud is empty" (safe to push) from "couldn't read cloud"
+        // (must NOT push, or a fresh device would clobber real data it failed to fetch).
+        if (!supabaseClient || !currentUser) { logSync('pull skipped: client/user not ready', true); return PULL_FAILED; }
         logSync('pulling cloud copy…');
         try {
-          const result = await Promise.race([
-            supabaseClient.from('user_state').select('state').eq('user_id', currentUser.id).maybeSingle(),
+          const selectColumns = prayersCloudColumnAvailable ? 'state, prayers' : 'state';
+          let result = await Promise.race([
+            supabaseClient.from('user_state').select(selectColumns).eq('user_id', currentUser.id).maybeSingle(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('read timeout (' + (SYNC_READ_TIMEOUT_MS / 1000) + 's) — database not responding (project paused? RLS? table missing?)')), SYNC_READ_TIMEOUT_MS)),
           ]);
-          const { data, error } = result;
-          if (error) { logSync('pull error: ' + (error.message || error), true); return null; }
+          let { data, error } = result;
+          if (error && prayersCloudColumnAvailable && String(error.message || '').toLowerCase().includes('prayers')) {
+            prayersCloudColumnAvailable = false;
+            logSync('prayers column missing — reading state only (add user_state.prayers jsonb to enable)', true);
+            ({ data, error } = await supabaseClient.from('user_state').select('state').eq('user_id', currentUser.id).maybeSingle());
+          }
+          if (error) { logSync('pull error: ' + (error.message || error), true); return PULL_FAILED; }
+          if (data && Object.prototype.hasOwnProperty.call(data, 'prayers')) applyRemotePrayers(data.prayers);
           if (!data || !data.state) { logSync('pull: no cloud copy yet (empty)'); return null; }
           logSync('pull OK (cloud copy received)');
           return data.state;
         } catch (cloudReadError) {
           logSync('pull FAILED: ' + ((cloudReadError && cloudReadError.message) || cloudReadError), true);
-          return null;
+          return PULL_FAILED;
         }
       },
 
@@ -5324,7 +5923,25 @@
     async function activateCloudForUser(user) {
       const localOwnerId = appState.ownerUserId || null;
       currentUser = user;
+      cloudSync.hydrated = false; // S1: block pushes until this activation has received + reconciled
+      loadPrayersForCurrentUser(); // per-user prayer cache; cloud merge follows via pull()
       const remoteState = await cloudSync.pull();
+      // S2: if the read genuinely FAILED (network/timeout, not just an empty cloud), do NOT
+      // reconcile or push — the local (possibly fresh/empty) state must never overwrite cloud
+      // data we couldn't fetch. Keep local as-is, leave the gate closed, retry shortly.
+      if (remoteState === PULL_FAILED) {
+        appState.ownerUserId = user.id;
+        persistStateToStorage(); // local only — gate is closed, so this can't push
+        renderAll();
+        if (typeof statsState !== 'undefined' && statsState.currentView === 'stats') renderStatsAll();
+        cloudSync._setStatus(navigator && navigator.onLine === false ? 'offline' : 'error');
+        logSync('initial pull failed — staying local, will retry (no push, cloud untouched)', true);
+        subscribeToRealtimeChanges();
+        updateAccountUi();
+        if (cloudSync._retryTimer) clearTimeout(cloudSync._retryTimer);
+        cloudSync._retryTimer = setTimeout(() => { if (currentUser) activateCloudForUser(user); }, SYNC_RETRY_MS);
+        return;
+      }
       const strategy = decideAccountLoadStrategy(localOwnerId, user.id, !!remoteState);
       logSync('account load strategy: ' + strategy + (localOwnerId && localOwnerId !== user.id ? ' (switched accounts)' : ''));
       if (strategy === 'merge') {
@@ -5340,6 +5957,7 @@
       renderAll();
       if (typeof statsState !== 'undefined' && statsState.currentView === 'stats') renderStatsAll();
       // Push the resulting state up as this account's current truth.
+      cloudSync.hydrated = true; // S1: receive+reconcile done — pushes are now allowed
       cloudSync._pendingSerialized = JSON.stringify(appState);
       await cloudSync.flushNow();
       subscribeToRealtimeChanges();
@@ -5350,11 +5968,13 @@
       if (realtimeChannel && supabaseClient) { try { supabaseClient.removeChannel(realtimeChannel); } catch (e) {} }
       realtimeChannel = null;
       currentUser = null;
+      loadPrayersForCurrentUser(); // back to the device-local prayer cache
       // Cancel any queued/pending cloud writes so nothing keeps trying after sign-out.
       if (cloudSync._writeTimer) { clearTimeout(cloudSync._writeTimer); cloudSync._writeTimer = null; }
       if (cloudSync._retryTimer) { clearTimeout(cloudSync._retryTimer); cloudSync._retryTimer = null; }
       cloudSync._pendingSerialized = null;
       cloudSync._inFlight = false;
+      cloudSync.hydrated = false; // S1: next sign-in must receive before it can send
       cloudSync.status = 'idle';
       cloudSync.lastSyncedAtMs = null;
       logSync('cloud deactivated (signed out)');
@@ -5372,10 +5992,18 @@
       try {
         await cloudSync.flushNow();                 // push anything pending first
         const remoteState = await cloudSync.pull(); // then pull latest
+        if (remoteState === PULL_FAILED) {
+          // S2: read failed — do not push a possibly-stale local copy over cloud data we
+          // couldn't fetch. Leave cloud untouched; the user can retry.
+          cloudSync._setStatus(navigator && navigator.onLine === false ? 'offline' : 'error');
+          logSync('Sync now: pull failed — cloud left untouched, try again', true);
+          return;
+        }
         if (remoteState) {
           const changed = mergeRemoteIntoLocal(remoteState);
           logSync('merge applied: ' + (changed ? 'state updated from cloud' : 'no change'));
         }
+        cloudSync.hydrated = true; // S1: a completed manual pull also satisfies receive-before-send
         cloudSync._pendingSerialized = JSON.stringify(appState);
         await cloudSync.flushNow();                 // write merged result back
         if (cloudSync.status === 'syncing') cloudSync._setStatus('synced');
