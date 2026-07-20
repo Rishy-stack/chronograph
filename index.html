@@ -1863,7 +1863,7 @@
   <script>
     // ============ Version ============
     // Bump on every change so the live build is identifiable (shown in Account sheet).
-    const APP_VERSION = '2.17.0';
+    const APP_VERSION = '2.18.0';
 
     // Timed sessions shorter than this are treated as accidental taps and not logged as their
     // own lap. Shared by Stop's auto-commit and the "New session" (bank-and-reset) button.
@@ -2270,6 +2270,32 @@
         sanitized.laps = sanitized.laps.filter(lapEntry => !tombstoned.has(lapEntry.lapId));
       }
       if (sanitized.isRunning && sanitized.segmentStartTimestamp === null) sanitized.isRunning = false;
+      // v2.18.0 — SELF-HEAL (runs on every load AND every merge, since all incoming
+      // state passes through here). splitTimeMs is CUMULATIVE, so the banked total must
+      // always be >= the last lap's split. A cross-device merge can clobber the
+      // activity's base fields (accumulatedBeforeSegmentMs) with a newer-but-empty copy
+      // while the laps survive via union — leaving a real history with a zeroed total
+      // (all-time reads 00:00, daimoku counter and campaign bar collapse). Two repairs:
+      //   1. drop any lap whose cumulative split went BACKWARDS (only possible if a
+      //      session was committed against a zeroed total — its duration would compute
+      //      negative and poison the daily stats),
+      //   2. restore the banked total to the highest cumulative split.
+      // In normal operation the invariant already holds, so this is a no-op.
+      if (sanitized.laps.length) {
+        sanitized.laps.sort((firstLap, secondLap) => firstLap.lapId - secondLap.lapId);
+        let highestSplitMs = 0;
+        const monotonicLaps = [];
+        sanitized.laps.forEach(lapEntry => {
+          if (lapEntry.splitTimeMs >= highestSplitMs) {
+            monotonicLaps.push(lapEntry);
+            highestSplitMs = lapEntry.splitTimeMs;
+          }
+        });
+        sanitized.laps = monotonicLaps;
+        if (sanitized.accumulatedBeforeSegmentMs < highestSplitMs) {
+          sanitized.accumulatedBeforeSegmentMs = highestSplitMs;
+        }
+      }
       return sanitized;
     }
 
